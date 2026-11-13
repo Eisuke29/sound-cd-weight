@@ -43,7 +43,7 @@ h1,h2,h3,p{margin:0}
 .s3 span{font-size:13px;color:var(--muted)}
 .s3 svg{flex:none;margin-left:auto}
 .h2{font-size:18px;font-weight:700;margin-top:6px}
-.methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 @media (max-width:640px){.methods{grid-template-columns:1fr}}
 .method{padding:16px;display:flex;flex-direction:column;gap:10px}
 .method .ill{background:var(--faint);border-radius:12px;display:grid;place-items:center;padding:10px}
@@ -52,6 +52,7 @@ h1,h2,h3,p{margin:0}
 .badge.good{background:var(--ok-soft);color:var(--ok)}
 .badge.meh{background:var(--p-soft);color:var(--p)}
 .method p{font-size:14px;color:var(--muted)}
+.method .btn{margin-top:auto}
 .method ul{margin:0;padding-left:1.2em;font-size:13.5px;color:var(--muted)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px}
 .btn.primary{background:var(--h);color:#fff}
@@ -179,6 +180,24 @@ kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 
       <div class="ill">
         <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
+          <rect x="92" y="98" width="56" height="9" rx="3" fill="var(--surface)" stroke="var(--fg)" stroke-width="2.2"/>
+          <circle cx="120" cy="98" r="2.5" fill="var(--fg)"/>
+          <path d="M120 96L82 12M120 96L158 12" stroke="var(--h)" stroke-width="1.6" stroke-dasharray="4 5"/>
+          <rect x="104" y="40" width="32" height="26" rx="4" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
+          <path d="M100 40h40" stroke="var(--fg)" stroke-width="7"/>
+          <path d="M176 70V34M170 40l6-6 6 6M170 64l6 6 6-6" stroke="var(--h)" stroke-width="2.2"/>
+        </svg>
+      </div>
+      <h3>スマホを置いて、その上で持ち上げる <span class="badge good">スマホだけ・精度 中</span></h3>
+      <p>スマホを画面を上にして机に置くと、カメラが上を向きます。その真上で手を上下させると、写る手の大きさから高さを測ります。</p>
+      <ul><li>手のひらを下に向けて、カメラの真上にかざす</li><li>近すぎると写りきらないので、10 cmくらい上から始める</li></ul>
+      <button type="button" class="btn primary" id="go-above">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>置いたスマホではじめる</button>
+    </div>
+    <div class="card method">
+      <div class="ill">
+        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
           <rect x="96" y="40" width="48" height="24" rx="5" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
           <path d="M120 34V14M114 20l6-6 6 6" stroke="var(--h)" stroke-width="2.2"/>
           <path d="M100 94h40" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>
@@ -226,14 +245,14 @@ kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 
 
   <div class="live" id="live">
     <div class="card panel" id="campanel">
-      <div class="ph"><b>カメラ</b><span>青い点が手の位置・点線が0の高さ</span></div>
+      <div class="ph"><b>カメラ</b><span id="camcap">青い点が手の位置・点線が0の高さ</span></div>
       <div class="camwrap" id="camwrap">
         <video id="video" playsinline muted></video>
         <canvas id="overlay"></canvas>
         <div class="lost" id="lost" hidden>手が写っていません</div>
       </div>
       <div class="camfoot">
-        <span class="muted">手と机の面が両方写るように置いてください。</span>
+        <span class="muted" id="camtip">手と机の面が両方写るように置いてください。</span>
         <button type="button" class="btn ghost" id="flip" style="padding:7px 12px;font-size:13px" hidden>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9 13a3 3 0 0 1 5.2-2M15 13a3 3 0 0 1-5.2 2"/></svg>前／後ろを切り替え</button>
       </div>
@@ -324,7 +343,7 @@ const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/h
 const BASE = 440, MAXCM = 40, MAXST = 24;
 const GAINS = [[0.05,"とても小"],[0.1,"小"],[0.2,"標準"],[0.4,"大"],[0.8,"とても大"]];
 const TOUCH = matchMedia("(pointer:coarse)").matches;
-const S = { mode: "cam", facing: TOUCH ? "environment" : "user", gain: 0.2, dir: 1, snd: "moving", blind: false, running: false };
+const S = { mode: "cam", aboveFacing: "user", facing: TOUCH ? "environment" : "user", gain: 0.2, dir: 1, snd: "moving", blind: false, running: false };
 const $ = id => document.getElementById(id);
 
 let h = 0, moving = false, gateUntil = 0, zeroed = false;
@@ -455,7 +474,7 @@ function guide(){
   let key, title, sub = "", icon, ok = false;
   if(!zeroed){
     key = "zero"; icon = S.mode === "phone" ? "phone" : "hand";
-    title = S.mode === "phone" ? "スマホを机に置いて、そのまま止めてください" : "手を机の上に置いて、そのまま止めてください";
+    title = S.mode === "phone" ? "スマホを机に置いて、そのまま止めてください" : S.mode === "above" ? "スマホの真上に手をかざして、そのまま止めてください" : "手を机の上に置いて、そのまま止めてください";
     sub = "輪が一周すると、その高さが0になります";
   } else if(S.mode === "demo"){
     key = "demo"; icon = "play"; title = "見本：自動で持ち上げています"; sub = "下のゲインを変えると、音の上がり方が変わります";
@@ -518,10 +537,14 @@ let stream = null, landmarker = null, camRaf = 0, cs = null;
 async function startCam(){
   $("campanel").hidden = false; $("live").classList.remove("nocam");
   $("flip").hidden = !TOUCH;
+  const above = S.mode === "above";
+  $("camcap").textContent = above ? "青い点が手の位置・数字はカメラからの距離" : "青い点が手の位置・点線が0の高さ";
+  $("camtip").textContent = above ? "画面を上にして机に置き、手のひらを下に向けて真上にかざしてください。" : "手と机の面が両方写るように置いてください。";
+  const facing = above ? S.aboveFacing : S.facing;
   $("btitle").textContent = "カメラを準備しています…"; $("bsub").textContent = "初回は手の検出の読み込みに数秒かかります"; lastGuide = "loading";
-  try{ stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: S.facing }, audio: false }); }
+  try{ stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing }, audio: false }); }
   catch(e){ showErr("カメラを使えませんでした。ブラウザの設定でカメラを許可してから、もう一度お試しください。"); return; }
-  $("camwrap").classList.toggle("mirror", S.facing === "user");
+  $("camwrap").classList.toggle("mirror", facing === "user");
   const video = $("video"); video.srcObject = stream; await video.play();
   if(!landmarker){
     try{
@@ -532,9 +555,14 @@ async function startCam(){
       catch(_){ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("CPU")); }
     }catch(e){ showErr("手の検出を読み込めませんでした。通信状況を確認して、ページを開き直してください。"); return; }
   }
-  cs = { y0: null, k: null, y: null, palm: null, hist: [], seen: 0, vt: -1, ph: 0, pt: 0 };
+  cs = { y0: null, k: null, y: null, palm: null, d: null, d0: null, hist: [], seen: 0, vt: -1, ph: 0, pt: 0 };
   zeroed = false; lastGuide = "";
-  zeroNow = () => { if(cs && cs.y != null){ cs.y0 = cs.y; cs.k = 9.5 / cs.palm; zeroed = true; h = 0; peak = 0; } };
+  zeroNow = () => {
+    if(!cs) return;
+    if(S.mode === "above"){ if(cs.d == null) return; cs.d0 = cs.d; }
+    else { if(cs.y == null) return; cs.y0 = cs.y; cs.k = 9.5 / cs.palm; }
+    zeroed = true; h = 0; peak = 0;
+  };
   camLoop();
 }
 function camLoop(){
@@ -547,27 +575,52 @@ function camLoop(){
       cs.vt = video.currentTime;
       if(cv.width !== W){ cv.width = W; cv.height = H; }
       const now = performance.now();
-      const lm = landmarker.detectForVideo(video, now).landmarks?.[0];
+      const res = landmarker.detectForVideo(video, now);
+      const lm = res.landmarks?.[0], wl = res.worldLandmarks?.[0];
+      const above = S.mode === "above";
       c.clearRect(0, 0, W, H);
       if(lm){
         cs.seen = now;
-        let cx = 0, cy = 0; [0,5,9,13,17].forEach(i => { cx += lm[i].x; cy += lm[i].y; }); cx = cx / 5 * W; cy = cy / 5 * H;
+        const PALM = [0, 1, 5, 9, 13, 17];
+        let cx = 0, cy = 0; PALM.forEach(i => { cx += lm[i].x; cy += lm[i].y; }); cx = cx / PALM.length * W; cy = cy / PALM.length * H;
         const palm = Math.hypot((lm[0].x - lm[9].x) * W, (lm[0].y - lm[9].y) * H);
         cs.y = cs.y == null ? cy : cs.y + 0.55 * (cy - cs.y);
         cs.palm = cs.palm ? cs.palm + 0.1 * (palm - cs.palm) : palm;
+        if(above && wl){
+          // 写った手の大きさ（px）と実寸の手の形（m）を比べて、カメラからの距離を出す
+          let wx = 0, wy = 0; PALM.forEach(i => { wx += wl[i].x; wy += wl[i].y; }); wx /= PALM.length; wy /= PALM.length;
+          let si = 0, sw = 0;
+          PALM.forEach(i => { si += Math.hypot(lm[i].x * W - cx, lm[i].y * H - cy); sw += Math.hypot(wl[i].x - wx, wl[i].y - wy); });
+          if(sw > 0 && si > 0){
+            const f = 0.74 * Math.max(W, H);   // 一般的なスマホカメラの画角（約70度）を仮定
+            const d = f * sw / si;            // m
+            cs.d = cs.d == null ? d : cs.d + 0.4 * (d - cs.d);
+          }
+        }
+        const q = above ? (cs.d == null ? null : cs.d * 100) : cs.y;
         if(!zeroed){
-          cs.hist.push({ t: now, y: cs.y }); while(now - cs.hist[0].t > 1000) cs.hist.shift();
-          const ys = cs.hist.map(p => p.y), still = Math.max(...ys) - Math.min(...ys) < cs.palm * 0.06;
-          if(!still) cs.hist = cs.hist.slice(-1);
-          zeroProgress = still ? (now - cs.hist[0].t) / 1000 : 0;
-          if(still && zeroProgress >= 0.95) zeroNow();
+          if(q != null){
+            cs.hist.push({ t: now, y: q }); while(now - cs.hist[0].t > 1000) cs.hist.shift();
+            const ys = cs.hist.map(p => p.y), span = Math.max(...ys) - Math.min(...ys);
+            const still = above ? span < 0.8 : span < cs.palm * 0.06;
+            if(!still) cs.hist = cs.hist.slice(-1);
+            zeroProgress = still ? (now - cs.hist[0].t) / 1000 : 0;
+            if(still && zeroProgress >= 0.95) zeroNow();
+          }
         } else {
-          h = Math.max(0, (cs.y0 - cs.y) * cs.k);
+          h = above ? Math.max(0, (cs.d - cs.d0) * 100) : Math.max(0, (cs.y0 - cs.y) * cs.k);
           const dt = (now - cs.pt) / 1000;
           if(dt > 0){ moving = Math.abs(h - cs.ph) / dt > 4; if(moving) gateUntil = now + 180; }
           cs.ph = h; cs.pt = now;
-          c.strokeStyle = accent; c.lineWidth = 4; c.setLineDash([14, 10]);
-          c.beginPath(); c.moveTo(0, cs.y0); c.lineTo(W, cs.y0); c.stroke(); c.setLineDash([]);
+          if(!above){
+            c.strokeStyle = accent; c.lineWidth = 4; c.setLineDash([14, 10]);
+            c.beginPath(); c.moveTo(0, cs.y0); c.lineTo(W, cs.y0); c.stroke(); c.setLineDash([]);
+          }
+        }
+        if(above && cs.d != null){
+          c.save(); if($("camwrap").classList.contains("mirror")){ c.translate(W, 0); c.scale(-1, 1); }
+          c.font = "bold 34px system-ui"; c.fillStyle = "#fff"; c.strokeStyle = "#000"; c.lineWidth = 5;
+          const tx = "距離 " + Math.round(cs.d * 100) + " cm"; c.strokeText(tx, 16, 46); c.fillText(tx, 16, 46); c.restore();
         }
         c.fillStyle = accent; c.beginPath(); c.arc(cx, cy, 16, 0, Math.PI * 2); c.fill();
         c.strokeStyle = "#fff"; c.lineWidth = 3; c.stroke();
@@ -580,7 +633,11 @@ function camLoop(){
   };
   step();
 }
-$("flip").onclick = () => { S.facing = S.facing === "user" ? "environment" : "user"; stopAll(); begin(); };
+$("flip").onclick = () => {
+  if(S.mode === "above") S.aboveFacing = S.aboveFacing === "user" ? "environment" : "user";
+  else S.facing = S.facing === "user" ? "environment" : "user";
+  stopAll(); begin();
+};
 
 /* ---------- phone sensor ---------- */
 let ph = null;
@@ -631,7 +688,7 @@ function stopAll(){
 }
 function begin(){
   $("err").hidden = true;
-  if(S.mode === "cam") startCam();
+  if(S.mode === "cam" || S.mode === "above") startCam();
   else if(S.mode === "phone") startPhone();
   else { $("campanel").hidden = true; $("live").classList.add("nocam"); zeroed = true; demoT0 = performance.now(); lastGuide = ""; }
 }
@@ -642,6 +699,7 @@ function go(mode){
 }
 $("go-cam").onclick = () => go("cam");
 $("go-phone").onclick = () => go("phone");
+$("go-above").onclick = () => go("above");
 $("go-demo").onclick = () => go("demo");
 $("back").onclick = () => { stopAll(); S.running = false; $("live-wrap").hidden = true; $("start").hidden = false; };
 if(location.hash === "#demo") go("demo");
