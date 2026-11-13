@@ -3,286 +3,348 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>音のC/D比デモ</title>
+<title>音で重さは変わる？｜音のC/D比デモ</title>
 <style>
-/* Layout: 1画面。主役は「高さ」と「音」の2本の縦メーターをつなぐ線。下にゲイン（傾きの絵）と設定アイコン */
+/* Layout: はじめの画面（3ステップの絵＋方法カード）→ 体験画面（ステップバー・指示バナー・カメラ｜メーター・操作カード） */
 :root{
-  --bg:#eef1f4; --surface:#ffffff; --fg:#141b24; --muted:#6a7483; --line:#d9dee5; --faint:#eef1f5;
-  --h:#1f6f8b; --p:#c2611f; --ok:#2e7d4f;
+  --bg:#f1f4f7; --surface:#ffffff; --fg:#141b24; --muted:#5f6a7a; --line:#d9dee6; --faint:#f3f5f8;
+  --h:#1f6f8b; --h-soft:#e3f0f5; --p:#c2611f; --p-soft:#fbeee4; --ok:#2e7d4f; --ok-soft:#e5f3eb;
   --f:"Hiragino Sans","Noto Sans JP","Yu Gothic UI","Yu Gothic",system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#0e1217; --surface:#171d25; --fg:#e8ecf1; --muted:#8e98a8; --line:#2b3340; --faint:#1e252f;
-  --h:#5fb6d3; --p:#f19a5c; --ok:#6ccb93; color-scheme:dark}}
+  --bg:#0e1217; --surface:#171d25; --fg:#e8ecf1; --muted:#97a1b1; --line:#2b3340; --faint:#1d242e;
+  --h:#5fb6d3; --h-soft:#15303a; --p:#f19a5c; --p-soft:#3a2617; --ok:#6ccb93; --ok-soft:#163323; color-scheme:dark}}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5;
-  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
-  -webkit-user-select:none;user-select:none}
-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.65;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation;text-align:inherit}
 button:focus-visible{outline:2px solid var(--h);outline-offset:3px;border-radius:10px}
 svg{display:block}
-.app{max-width:1000px;margin:0 auto;min-height:100%;padding-block:14px 20px;
-  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
-  display:flex;flex-direction:column;gap:12px}
-
-/* top bar */
-.top{display:flex;align-items:center;gap:10px}
-.top h1{font-size:16px;margin:0;font-weight:700;flex:1;letter-spacing:.02em}
-.modes{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
-.modes button{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;font-size:13px;color:var(--muted)}
-.modes button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
-.icon-btn{width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center}
-.icon-btn[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
-
-/* start */
-.start{flex:1;display:grid;place-items:center;padding:40px 0}
-.start-inner{display:flex;flex-direction:column;align-items:center;gap:18px}
-.go{width:148px;height:148px;border-radius:50%;background:var(--h);color:#fff;display:grid;place-items:center;
-  box-shadow:0 0 0 10px color-mix(in srgb,var(--h) 18%,transparent)}
-.go:active{transform:scale(.97)}
-.start-hint{display:flex;gap:16px;align-items:center;color:var(--muted)}
-
-/* live */
-.live{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch}
-.live.phone{grid-template-columns:minmax(0,1fr)}
-@media (max-width:760px){.live{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;min-width:0}
-.cam{aspect-ratio:4/3}
-.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.cam.mirror video,.cam.mirror canvas{transform:scaleX(-1)}
-@media (max-width:760px){.cam{max-height:38vh;aspect-ratio:auto;height:38vh}.stage svg{max-height:40vh}}
-.cam video{opacity:.9}
-.stage{padding:10px 8px 6px}
-.stage svg{width:100%;height:auto;max-height:62vh}
-.big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700}
-
-/* overlay: calibration */
-.hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  background:color-mix(in srgb,var(--surface) 78%,transparent);font-weight:700;font-size:17px}
-.hint small{font-weight:400;color:var(--muted);font-size:13px}
-.blind{position:absolute;inset:0;background:var(--fg);color:var(--surface);display:grid;place-items:center}
-.lost{position:absolute;top:10px;left:10px;background:var(--fg);color:var(--surface);border-radius:99px;padding:4px 10px;font-size:12.5px;display:flex;gap:6px;align-items:center}
-
-/* controls */
-.controls{display:flex;flex-direction:column;gap:10px}
-.gains{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.gain{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
-.gain .v{font-family:var(--mono);font-size:12px;color:var(--muted)}
-.gain[aria-pressed="true"]{border-color:var(--fg);box-shadow:inset 0 0 0 1.5px var(--fg)}
-.gain[aria-pressed="true"] .v{color:var(--fg);font-weight:700}
-.opts{display:flex;gap:8px;flex-wrap:wrap}
-.pair{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
-.pair button{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;font-size:13px;color:var(--muted)}
-.pair button[aria-pressed="true"]{background:var(--faint);color:var(--fg);font-weight:700}
-.spacer{flex:1}
-.zero{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:700}
-.err{background:var(--surface);border:1px solid var(--p);color:var(--p);border-radius:12px;padding:10px 12px;font-size:13.5px}
+h1,h2,h3,p{margin:0}
+.app{max-width:1040px;margin:0 auto;padding-block:18px 28px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+.muted{color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;min-width:0}
 [hidden]{display:none!important}
+
+/* ===== start ===== */
+.hero{display:flex;flex-direction:column;gap:6px;padding-top:6px}
+.eyebrow{font-size:12.5px;font-weight:700;color:var(--h);letter-spacing:.06em}
+.hero h1{font-size:clamp(26px,5.5vw,36px);line-height:1.3}
+.hero p{font-size:16px;color:var(--muted);max-width:40em}
+.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.steps3{grid-template-columns:1fr}}
+.s3{padding:14px;display:flex;gap:12px;align-items:center}
+.s3 .num{flex:none;width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--surface);display:grid;place-items:center;font-weight:700;font-size:14px}
+.s3 b{display:block;font-size:15px}
+.s3 span{font-size:13px;color:var(--muted)}
+.s3 svg{flex:none;margin-left:auto}
+.h2{font-size:18px;font-weight:700;margin-top:6px}
+.methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.methods{grid-template-columns:1fr}}
+.method{padding:16px;display:flex;flex-direction:column;gap:10px}
+.method .ill{background:var(--faint);border-radius:12px;display:grid;place-items:center;padding:10px}
+.method h3{font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px}
+.badge.good{background:var(--ok-soft);color:var(--ok)}
+.badge.meh{background:var(--p-soft);color:var(--p)}
+.method p{font-size:14px;color:var(--muted)}
+.method ul{margin:0;padding-left:1.2em;font-size:13.5px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px}
+.btn.primary{background:var(--h);color:#fff}
+.btn.ghost{border:1px solid var(--line);background:var(--surface)}
+.btn:active{transform:scale(.98)}
+.tips{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;font-size:13.5px;color:var(--muted)}
+.tips svg{flex:none;margin-top:2px}
+
+/* ===== live ===== */
+.topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.back{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--muted);padding:6px 4px}
+.stepbar{display:flex;gap:6px;flex:1 1 360px;min-width:0}
+.st .sm{display:none}
+@media (max-width:640px){.st .lg{display:none}.st .sm{display:inline}.st{padding:6px 8px;gap:6px}}
+.st{flex:1;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--muted);min-width:0}
+.st i{font-style:normal;flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700}
+.st span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.now{border-color:var(--fg);color:var(--fg);font-weight:700}
+.st.now i{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+.st.done{color:var(--ok)}
+.st.done i{background:var(--ok);border-color:var(--ok);color:#fff}
+.banner{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--fg);color:var(--surface)}
+.banner .ico{flex:none;width:46px;height:46px;position:relative;display:grid;place-items:center}
+.banner .ico svg{position:absolute;inset:0}
+.banner b{display:block;font-size:17px;line-height:1.4}
+.banner span{font-size:13.5px;opacity:.8}
+.banner.ok{background:var(--ok);color:#fff}
+
+.live{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.live.nocam{grid-template-columns:minmax(0,1fr)}
+@media (max-width:760px){.live{grid-template-columns:minmax(0,1fr)}}
+.panel{position:relative;overflow:hidden;display:flex;flex-direction:column}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 14px 0}
+.ph b{font-size:14px}
+.ph span{font-size:12.5px;color:var(--muted)}
+.camwrap{position:relative;margin:10px;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3}
+@media (max-width:760px){.camwrap{aspect-ratio:auto;height:34vh}}
+.camwrap video,.camwrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camwrap.mirror video,.camwrap.mirror canvas{transform:scaleX(-1)}
+.lost{position:absolute;top:10px;left:10px;background:#000c;color:#fff;border-radius:99px;padding:4px 12px;font-size:13px}
+.camfoot{display:flex;gap:8px;padding:0 10px 10px;align-items:center;flex-wrap:wrap}
+.camfoot .muted{font-size:12.5px;flex:1;min-width:12em}
+.stage{padding:6px 8px 8px}
+.stage svg{width:100%;height:auto;max-height:56vh}
+.live.nocam .stage svg{max-width:520px;margin:0 auto}
+@media (max-width:760px){.stage svg{max-height:44vh}}
+.blind{position:absolute;inset:0;background:var(--fg);color:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-weight:700}
+.blind span{font-weight:400;font-size:13px;opacity:.8}
+
+.controls{padding:6px 16px}
+.crow{display:grid;grid-template-columns:11em minmax(0,1fr);gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.crow:last-child{border-bottom:0}
+@media (max-width:640px){.crow{grid-template-columns:1fr;gap:8px}}
+.clabel b{display:block;font-size:14.5px}
+.clabel span{display:block;font-size:12.5px;color:var(--muted);line-height:1.5}
+.gains{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.gain{border:1px solid var(--line);border-radius:12px;padding:6px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--surface)}
+.gain .v{font-family:var(--mono);font-size:12.5px;font-weight:700}
+.gain .w{font-size:11px;color:var(--muted)}
+.gain[aria-pressed="true"]{border-color:var(--p);background:var(--p-soft);box-shadow:inset 0 0 0 1px var(--p)}
+.gain-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:4px;padding-inline:4px}
+.seg{display:inline-flex;background:var(--faint);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;font-size:13.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:0 1px 2px #0002}
+.rowbtns{display:flex;gap:8px;flex-wrap:wrap}
+.err{border:1px solid var(--p);color:var(--p);background:var(--p-soft);border-radius:12px;padding:10px 14px;font-size:14px}
 </style>
 </head>
 <body>
 <div class="app">
 
-  <div class="top">
-    <h1>音のC/D比</h1>
-    <div class="modes" role="group" aria-label="測り方">
-      <button type="button" id="m-cam" aria-pressed="true" title="Webカメラで手を追う">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>カメラ</button>
-      <button type="button" id="m-phone" aria-pressed="false" title="スマホのセンサー">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>センサー</button>
-    </div>
-    <button type="button" class="icon-btn" id="flip" aria-label="カメラを切り替える" title="前／後ろのカメラを切り替える" hidden>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9 13a3 3 0 0 1 5.2-2M15 13a3 3 0 0 1-5.2 2"/><path d="M14 9.5l.4 1.6-1.6.3M10 16.5l-.4-1.6 1.6-.3"/></svg>
-    </button>
-    <button type="button" class="icon-btn" id="eye" aria-pressed="false" aria-label="目を閉じる" title="目を閉じる（画面を隠す）">
-      <svg id="eye-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-      <svg id="eye-closed" hidden width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
-    </button>
+<!-- ================= START ================= -->
+<section id="start" style="display:flex;flex-direction:column;gap:16px">
+  <div class="hero">
+    <span class="eyebrow">音のC/D比 プロトタイプ</span>
+    <h1>音で、重さは変わる？</h1>
+    <p>物を持ち上げると、手の高さに合わせて音が高くなります。<b>手を1 cm上げたときに音がどれだけ上がるか</b>（ゲイン）を変えると、同じ物でも重さの感じ方が変わるかを試せます。</p>
   </div>
 
-  <!-- start -->
-  <section class="start" id="start">
-    <div class="start-inner">
-      <button type="button" class="go" id="go" aria-label="はじめる">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <div class="start-hint" id="start-hint" aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 14v-2a2 2 0 0 1 4 0v2"/><path d="M3 14a9 9 0 0 0 18 0V9a2 2 0 0 0-4 0"/><path d="M7 12V5a2 2 0 0 1 4 0v6"/><path d="M11 11V4a2 2 0 0 1 4 0v7"/><path d="M15 11V6a2 2 0 0 1 4 0v5"/></svg>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  <div class="steps3">
+    <div class="card s3"><span class="num">1</span><div><b>机に置いて0に合わせる</b><span>じっとすると自動で合う</span></div>
+      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round"><path d="M4 34h46"/><rect x="18" y="22" width="18" height="12" rx="2" fill="var(--h-soft)" stroke="var(--h)"/></svg></div>
+    <div class="card s3"><span class="num">2</span><div><b>ゆっくり持ち上げる</b><span>30 cmくらいまで、そして戻す</span></div>
+      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 34h46" stroke="var(--muted)"/><rect x="18" y="6" width="18" height="12" rx="2" fill="var(--h-soft)" stroke="var(--h)"/><path d="M27 30v-8M23 26l4-4 4 4" stroke="var(--h)"/></svg></div>
+    <div class="card s3"><span class="num">3</span><div><b>ゲインを変えて比べる</b><span>目を閉じても試す</span></div>
+      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke-width="2.6" stroke-linecap="round"><path d="M6 34L48 30" stroke="var(--p)" opacity=".5"/><path d="M6 34L48 18" stroke="var(--p)" opacity=".75"/><path d="M6 34L48 6" stroke="var(--p)"/></svg></div>
+  </div>
+
+  <h2 class="h2">高さの測り方を選ぶ</h2>
+  <div class="methods">
+    <div class="card method">
+      <div class="ill">
+        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
+          <!-- phone/laptop on stand -->
+          <rect x="22" y="30" width="44" height="72" rx="6" fill="var(--surface)" stroke="var(--fg)" stroke-width="2.2"/>
+          <circle cx="44" cy="38" r="3" fill="var(--fg)"/>
+          <path d="M30 108l14-10 14 10" stroke="var(--fg)" stroke-width="2.2"/>
+          <!-- view cone -->
+          <path d="M47 38L200 18M47 38L200 104" stroke="var(--h)" stroke-width="1.6" stroke-dasharray="4 5"/>
+          <!-- hand + cup -->
+          <rect x="140" y="52" width="30" height="34" rx="4" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
+          <path d="M136 52h38" stroke="var(--fg)" stroke-width="7"/>
+          <path d="M155 104v-12M150 97l5-5 5 5" stroke="var(--h)" stroke-width="2.2"/>
+        </svg>
+      </div>
+      <h3>カメラで手を写す <span class="badge good">精度 高い・おすすめ</span></h3>
+      <p>PCのWebカメラか、スマホを立てて置いてカメラで手を写します。手の位置から高さを測るので、持ち上げる物は何でも構いません。</p>
+      <ul><li>手と机が写るように、横か斜め前から写す</li><li>カメラの使用を許可してください</li></ul>
+      <button type="button" class="btn primary" id="go-cam">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>カメラではじめる</button>
+    </div>
+    <div class="card method">
+      <div class="ill">
+        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
+          <rect x="96" y="40" width="48" height="24" rx="5" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
+          <path d="M120 34V14M114 20l6-6 6 6" stroke="var(--h)" stroke-width="2.2"/>
+          <path d="M100 94h40" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>
+          <rect x="100" y="94" width="40" height="10" rx="3" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="3 3"/>
+          <path d="M120 88V70" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="3 4"/>
+        </svg>
+      </div>
+      <h3>スマホそのものを持ち上げる <span class="badge meh">手軽・精度は粗い</span></h3>
+      <p>スマホの動きセンサーで高さを推定します。持ち上げて机に戻すと、最初の音に戻ります。途中の高さは数cmずれます。</p>
+      <ul><li>画面を上にして机に置いてから始める</li><li>iPhoneは動きの許可を求められます</li></ul>
+      <button type="button" class="btn ghost" id="go-phone">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>スマホのセンサーではじめる</button>
+    </div>
+  </div>
+
+  <div class="card tips">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--p)" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
+    <div>音が出ます。<b>有線イヤホン</b>がおすすめです（Bluetoothは音が遅れます）。iPhoneはマナーモードを解除してください。
+      カメラが使えない場合は <button type="button" id="go-demo" style="color:var(--h);text-decoration:underline;font-weight:700">見本を見る</button>（自動で持ち上げる動きを再生）。</div>
+  </div>
+</section>
+
+<!-- ================= LIVE ================= -->
+<section id="live-wrap" hidden style="display:flex;flex-direction:column;gap:12px">
+  <div class="topbar">
+    <button type="button" class="back" id="back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>方法を選び直す</button>
+    <div class="stepbar" aria-label="進み具合">
+      <div class="st" id="st1"><i>1</i><span class="lg">0に合わせる</span><span class="sm">準備</span></div>
+      <div class="st" id="st2"><i>2</i><span class="lg">持ち上げる</span><span class="sm">上げる</span></div>
+      <div class="st" id="st3"><i>3</i><span class="lg">ゲインを変えて比べる</span><span class="sm">比べる</span></div>
+    </div>
+  </div>
+
+  <div class="banner" id="banner" aria-live="polite">
+    <div class="ico">
+      <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="4"/>
+        <circle id="ring" cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132" transform="rotate(-90 25 25)"/></svg>
+      <svg id="bicon" viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </div>
+    <div><b id="btitle">準備中</b><span id="bsub"></span></div>
+  </div>
+
+  <div class="err" id="err" hidden></div>
+
+  <div class="live" id="live">
+    <div class="card panel" id="campanel">
+      <div class="ph"><b>カメラ</b><span>青い点が手の位置・点線が0の高さ</span></div>
+      <div class="camwrap" id="camwrap">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="lost" id="lost" hidden>手が写っていません</div>
+      </div>
+      <div class="camfoot">
+        <span class="muted">手と机の面が両方写るように置いてください。</span>
+        <button type="button" class="btn ghost" id="flip" style="padding:7px 12px;font-size:13px" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9 13a3 3 0 0 1 5.2-2M15 13a3 3 0 0 1-5.2 2"/></svg>前／後ろを切り替え</button>
       </div>
     </div>
-  </section>
 
-  <!-- live -->
-  <section class="live" id="live" hidden>
-    <div class="panel cam" id="campanel">
-      <video id="video" playsinline muted></video>
-      <canvas id="overlay"></canvas>
-      <div class="lost" id="lost" hidden>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 8v5M12 16v.5"/><circle cx="12" cy="12" r="10"/></svg>手が見えない</div>
-    </div>
-
-    <div class="panel stage" id="stagepanel">
-      <svg id="stage" viewBox="0 0 360 330" role="img" aria-label="高さと音のメーター">
-        <!-- columns -->
-        <rect x="58" y="30" width="44" height="240" rx="22" fill="var(--faint)"/>
-        <rect x="258" y="30" width="44" height="240" rx="22" fill="var(--faint)"/>
+    <div class="card panel stage" id="stagepanel">
+      <div class="ph" style="padding-inline:6px"><b>手の高さ と 音の高さ</b><span>2つをつなぐ線の傾き＝ゲイン</span></div>
+      <svg id="stage" viewBox="0 0 360 340" role="img" aria-label="手の高さと音の高さのメーター">
+        <text x="80" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="var(--h)">手の高さ</text>
+        <text x="280" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="var(--p)">音の高さ</text>
+        <rect x="58" y="34" width="44" height="236" rx="22" fill="var(--faint)" stroke="var(--line)"/>
+        <rect x="258" y="34" width="44" height="236" rx="22" fill="var(--faint)" stroke="var(--line)"/>
         <g id="hticks"></g><g id="pticks"></g>
-        <!-- target guide -->
-        <line x1="50" x2="110" y1="90" y2="90" stroke="var(--h)" stroke-width="2.5" stroke-dasharray="5 5" opacity=".7"/>
-        <g id="guide" opacity="0">
-          <rect id="guidebg" x="130" y="4" width="100" height="30" rx="15" fill="var(--fg)"/>
-          <text id="guidetext" x="180" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="var(--surface)"></text>
-        </g>
-        <!-- fill -->
-        <rect id="hfill" x="58" y="270" width="44" height="0" rx="22" fill="var(--h)" opacity=".18"/>
-        <rect id="pfill" x="258" y="270" width="44" height="0" rx="22" fill="var(--p)" opacity=".18"/>
-        <!-- link line -->
-        <line id="link" x1="102" y1="270" x2="258" y2="270" stroke="var(--fg)" stroke-width="2.5" stroke-dasharray="1 0" opacity=".55"/>
-        <!-- markers -->
+        <line x1="50" x2="110" y1="93.5" y2="93.5" stroke="var(--h)" stroke-width="2" stroke-dasharray="5 5"/>
+        <text x="114" y="97" font-size="11" fill="var(--h)">目安</text>
+        <rect id="hfill" x="58" y="270" width="44" height="0" rx="22" fill="var(--h)" opacity=".16"/>
+        <rect id="pfill" x="258" y="270" width="44" height="0" rx="22" fill="var(--p)" opacity=".16"/>
+        <line id="link" x1="104" y1="270" x2="256" y2="270" stroke="var(--p)" stroke-width="3" opacity=".7"/>
         <g id="hmark" transform="translate(80,270)">
-          <rect x="-24" y="-18" width="48" height="36" rx="7" fill="var(--h)"/>
-          <path d="M-12 -2h24" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+          <rect x="-24" y="-17" width="48" height="34" rx="7" fill="var(--h)"/>
+          <path d="M-11 -1h22" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
         </g>
         <g id="pmark" transform="translate(280,270)">
-          <circle r="21" fill="var(--p)"/>
+          <circle r="20" fill="var(--p)"/>
           <path d="M-3 7V-9l9 -2" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="-6.5" cy="7.5" r="4" fill="#fff"/>
         </g>
-        <!-- labels -->
-        <text x="80" y="300" text-anchor="middle" class="big" style="font-size:26px;fill:var(--h)" id="hval">0</text>
-        <text x="80" y="320" text-anchor="middle" style="font-size:12px;fill:var(--muted)">cm</text>
-        <text x="280" y="300" text-anchor="middle" class="big" style="font-size:26px;fill:var(--p)" id="pval">0</text>
-        <text x="280" y="320" text-anchor="middle" style="font-size:12px;fill:var(--muted)">半音</text>
+        <text x="80" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--h)" id="hval">0</text>
+        <text x="80" y="326" text-anchor="middle" font-size="12" fill="var(--muted)">cm</text>
+        <text x="280" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--p)" id="pval">0</text>
+        <text x="280" y="326" text-anchor="middle" font-size="12" fill="var(--muted)">半音（最初の音から）</text>
         <g id="speaker" transform="translate(180,300)" opacity=".25">
           <path d="M-12 -5h5l7-6v22l-7-6h-5z" fill="var(--fg)"/>
           <path d="M5 -4a6 6 0 0 1 0 12M9 -8a11 11 0 0 1 0 20" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linecap="round"/>
         </g>
+        <text id="sndlabel" x="180" y="328" text-anchor="middle" font-size="11" fill="var(--muted)">停止中</text>
       </svg>
-      <div class="hint" id="hint" hidden>
-        <svg id="ring" width="96" height="96" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="8"/>
-          <circle id="ringfill" cx="50" cy="50" r="42" fill="none" stroke="var(--ok)" stroke-width="8" stroke-linecap="round"
-            stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
-          <g id="ringhand" transform="translate(50,52)" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round">
-            <path d="M-20 10h40"/><path d="M-6 6v-14a3 3 0 0 1 6 0v10M0 2v-16a3 3 0 0 1 6 0v16M6 2v-12a3 3 0 0 1 6 0v12"/>
-          </g>
-          <g id="ringphone" transform="translate(50,52)" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round" hidden>
-            <path d="M-22 10h44"/><rect x="-16" y="1" width="32" height="7" rx="2"/>
-          </g>
-        </svg>
-        <span id="hinttext">手を机に置いて止める</span>
-      </div>
       <div class="blind" id="blind" hidden>
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
+        目を閉じて、音だけで比べてみよう<span>もう一度押すと表示に戻ります</span>
       </div>
     </div>
-  </section>
+  </div>
 
-  <div class="err" id="err" hidden></div>
-
-  <section class="controls" id="controls" hidden>
-    <div class="gains" role="group" aria-label="ゲイン（1 cmあたりの半音）" id="gains"></div>
-    <div class="opts">
-      <div class="pair" role="group" aria-label="向き">
-        <button type="button" data-dir="1" aria-pressed="true" title="上げると音が上がる">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 20V4M6 10l6-6 6 6"/></svg>上がる</button>
-        <button type="button" data-dir="-1" aria-pressed="false" title="上げると音が下がる">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>下がる</button>
+  <div class="card controls" id="controls">
+    <div class="crow">
+      <div class="clabel"><b>ゲイン</b><span>手を1 cm上げたとき、音が何半音上がるか</span></div>
+      <div>
+        <div class="gains" id="gains" role="group" aria-label="ゲイン"></div>
+        <div class="gain-scale"><span>← 音があまり上がらない（重い？）</span><span>よく上がる（軽い？）→</span></div>
       </div>
-      <div class="pair" role="group" aria-label="鳴らし方">
-        <button type="button" data-snd="moving" aria-pressed="true" title="動いている間だけ鳴る">
-          <svg width="26" height="20" viewBox="0 0 30 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 10h4M10 10h4M18 10h4M26 10h2"/></svg>動く間</button>
-        <button type="button" data-snd="always" aria-pressed="false" title="ずっと鳴る">
-          <svg width="26" height="20" viewBox="0 0 30 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 10h26"/></svg>ずっと</button>
-      </div>
-      <span class="spacer"></span>
-      <button type="button" class="zero" id="zero" title="今の高さを0にする">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 20h18"/><path d="M12 16V5M8 9l4-4 4 4"/></svg>0</button>
     </div>
-  </section>
+    <div class="crow">
+      <div class="clabel"><b>音の向き</b><span>持ち上げたとき、音を上げるか下げるか</span></div>
+      <div class="seg" role="group" aria-label="音の向き">
+        <button type="button" data-dir="1" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 20V4M6 10l6-6 6 6"/></svg>上げると高くなる</button>
+        <button type="button" data-dir="-1" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>上げると低くなる</button>
+      </div>
+    </div>
+    <div class="crow">
+      <div class="clabel"><b>鳴らし方</b><span>止まっている間も鳴らすかどうか</span></div>
+      <div class="seg" role="group" aria-label="鳴らし方">
+        <button type="button" data-snd="moving" aria-pressed="true">動いている間だけ</button>
+        <button type="button" data-snd="always" aria-pressed="false">ずっと鳴らす</button>
+      </div>
+    </div>
+    <div class="crow">
+      <div class="clabel"><b>その他</b><span>ずれたら0に合わせ直す</span></div>
+      <div class="rowbtns">
+        <button type="button" class="btn ghost" id="zero" style="padding:8px 14px;font-size:14px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 20h18"/><path d="M12 16V6M8 10l4-4 4 4"/></svg>今の高さを0にする</button>
+        <button type="button" class="btn ghost" id="eye" aria-pressed="false" style="padding:8px 14px;font-size:14px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg><span id="eyetext">目を閉じて試す</span></button>
+      </div>
+    </div>
+  </div>
+</section>
 </div>
 
 <script type="module">
 const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 const BASE = 440, MAXCM = 40, MAXST = 24;
-const GAINS = [0.05, 0.1, 0.2, 0.4, 0.8];
+const GAINS = [[0.05,"とても小"],[0.1,"小"],[0.2,"標準"],[0.4,"大"],[0.8,"とても大"]];
 const TOUCH = matchMedia("(pointer:coarse)").matches;
-const S = { mode: "cam", facing: "user", gain: 0.2, dir: 1, snd: "moving", blind: false, running: false };
+const S = { mode: "cam", facing: TOUCH ? "environment" : "user", gain: 0.2, dir: 1, snd: "moving", blind: false, running: false };
 const $ = id => document.getElementById(id);
-const NS = "http://www.w3.org/2000/svg";
 
-let h = 0;            // cm
-let moving = false, gateUntil = 0, zeroed = false;
+let h = 0, moving = false, gateUntil = 0, zeroed = false;
+let lifts = 0, peak = 0, zeroProgress = 0;
 
-/* ---------- gain buttons with slope icons ---------- */
-GAINS.forEach(g => {
+/* ---------- gain buttons ---------- */
+const RISE = [4, 9, 14, 20, 27];
+GAINS.forEach(([g, w], gi) => {
   const b = document.createElement("button");
-  b.type = "button"; b.className = "gain"; b.dataset.g = g;
-  b.setAttribute("aria-pressed", g === S.gain ? "true" : "false");
-  b.setAttribute("aria-label", g + " 半音/cm");
-  const rise = Math.min(30, g * 37.5); // 0.8 -> 30
-  b.innerHTML = `<svg width="56" height="40" viewBox="0 0 56 40"><path d="M6 34H50" stroke="var(--line)" stroke-width="2"/>
-    <path d="M6 34L50 ${34 - rise}" stroke="var(--p)" stroke-width="3.2" stroke-linecap="round"/></svg><span class="v">${g}</span>`;
-  b.addEventListener("click", () => { S.gain = g; document.querySelectorAll(".gain").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); });
+  b.type = "button"; b.className = "gain"; b.setAttribute("aria-pressed", g === S.gain ? "true" : "false");
+  const rise = RISE[gi];
+  b.innerHTML = `<svg width="48" height="34" viewBox="0 0 48 34"><path d="M5 29H43" stroke="var(--line)" stroke-width="2"/><path d="M5 29L43 ${29 - rise}" stroke="var(--p)" stroke-width="3" stroke-linecap="round"/></svg><span class="v">${g}</span><span class="w">${w}</span>`;
+  b.onclick = () => { S.gain = g; document.querySelectorAll(".gain").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); };
   $("gains").appendChild(b);
 });
-function bindPair(attr, key, parse){
+function bindSeg(attr, key, parse){
   const btns = document.querySelectorAll(`[data-${attr}]`);
-  btns.forEach(b => b.addEventListener("click", () => {
-    S[key] = parse(b.dataset[attr]);
-    btns.forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false"));
-    drawTicks();
-  }));
+  btns.forEach(b => b.onclick = () => { S[key] = parse(b.dataset[attr]); btns.forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); drawTicks(); });
 }
-bindPair("dir", "dir", x => parseInt(x, 10));
-bindPair("snd", "snd", x => x);
-
-/* ---------- mode switch ---------- */
-function setMode(m){
-  S.mode = m;
-  $("m-cam").setAttribute("aria-pressed", m === "cam" ? "true" : "false");
-  $("m-phone").setAttribute("aria-pressed", m === "phone" ? "true" : "false");
-  $("flip").hidden = !(TOUCH && m === "cam");
-  if(S.running){ stopAll(); begin(); }
-}
-$("flip").onclick = () => {
-  S.facing = S.facing === "user" ? "environment" : "user";
-  if(S.running && S.mode === "cam"){ stopAll(); begin(); }
-};
-$("m-cam").onclick = () => setMode("cam");
-$("m-phone").onclick = () => setMode("phone");
-setMode(S.mode);
-
+bindSeg("dir", "dir", x => parseInt(x, 10));
+bindSeg("snd", "snd", x => x);
 $("eye").onclick = () => {
-  S.blind = !S.blind;
-  $("eye").setAttribute("aria-pressed", S.blind ? "true" : "false");
-  $("eye-open").hidden = S.blind; $("eye-closed").hidden = !S.blind;
-  $("blind").hidden = !S.blind;
+  S.blind = !S.blind; $("eye").setAttribute("aria-pressed", S.blind ? "true" : "false");
+  $("blind").hidden = !S.blind; $("eyetext").textContent = S.blind ? "表示に戻す" : "目を閉じて試す";
 };
 
-/* ---------- stage drawing ---------- */
-const Y0 = 270, Y1 = 30, HX = 80, PX = 280;
+/* ---------- stage ---------- */
+const Y0 = 270, Y1 = 34, HX = 80, PX = 280;
 const yH = cm => Y0 - (Math.max(0, Math.min(MAXCM, cm)) / MAXCM) * (Y0 - Y1);
-function yP(st){ // base at bottom (up) or top (down)
-  const m = Math.min(MAXST, Math.abs(st)) / MAXST * (Y0 - Y1);
-  return S.dir > 0 ? Y0 - m : Y1 + m;
-}
+const yP = st => { const m = Math.min(MAXST, Math.abs(st)) / MAXST * (Y0 - Y1); return S.dir > 0 ? Y0 - m : Y1 + m; };
 function drawTicks(){
   const ht = $("hticks"), pt = $("pticks"); ht.innerHTML = ""; pt.innerHTML = "";
-  for(let c = 0; c <= MAXCM; c += 10){
-    const y = yH(c);
-    ht.insertAdjacentHTML("beforeend", `<line x1="44" x2="54" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="2"/><text x="38" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${c}</text>`);
-  }
-  for(let s = 0; s <= MAXST; s += 6){
-    const y = yP(S.dir * s);
-    const lab = s === 0 ? "♪" : (S.dir > 0 ? "+" : "−") + s;
-    pt.insertAdjacentHTML("beforeend", `<line x1="306" x2="316" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="2"/><text x="322" y="${y+4}" font-size="11" fill="var(--muted)">${lab}</text>`);
-  }
+  for(let c = 0; c <= MAXCM; c += 10){ const y = yH(c);
+    ht.insertAdjacentHTML("beforeend", `<line x1="46" x2="54" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="1.5"/><text x="40" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${c}</text>`); }
+  for(let s = 0; s <= MAXST; s += 6){ const y = yP(S.dir * s);
+    pt.insertAdjacentHTML("beforeend", `<line x1="306" x2="314" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="1.5"/><text x="320" y="${y+4}" font-size="11" fill="var(--muted)">${s === 0 ? "最初" : (S.dir > 0 ? "+" : "−") + s}</text>`); }
 }
 drawTicks();
 function render(st, on){
@@ -290,68 +352,99 @@ function render(st, on){
   $("hmark").setAttribute("transform", `translate(${HX},${hy})`);
   $("pmark").setAttribute("transform", `translate(${PX},${py})`);
   $("link").setAttribute("y1", hy); $("link").setAttribute("y2", py);
-  $("hfill").setAttribute("y", hy); $("hfill").setAttribute("height", Y0 - hy + 0.01);
-  if(S.dir > 0){ $("pfill").setAttribute("y", py); $("pfill").setAttribute("height", Y0 - py + 0.01); }
-  else { $("pfill").setAttribute("y", Y1); $("pfill").setAttribute("height", py - Y1 + 0.01); }
+  $("hfill").setAttribute("y", hy); $("hfill").setAttribute("height", Math.max(0.01, Y0 - hy));
+  if(S.dir > 0){ $("pfill").setAttribute("y", py); $("pfill").setAttribute("height", Math.max(0.01, Y0 - py)); }
+  else { $("pfill").setAttribute("y", Y1); $("pfill").setAttribute("height", Math.max(0.01, py - Y1)); }
   $("hval").textContent = Math.round(h);
   $("pval").textContent = (st > 0.05 ? "+" : st < -0.05 ? "−" : "") + Math.abs(st).toFixed(1);
   $("speaker").setAttribute("opacity", on ? "1" : ".25");
-  // 次にやることを短く出す
-  let g = "";
-  if(zeroed && !moving){ if(h < 5) g = "↑ 上げる"; else if(h >= 22) g = "↓ 下ろす"; }
-  $("guidetext").textContent = g;
-  $("guide").setAttribute("opacity", g ? "1" : "0");
-  $("pmark").setAttribute("opacity", on ? "1" : ".45");
+  $("pmark").setAttribute("opacity", on ? "1" : ".5");
+  $("sndlabel").textContent = on ? "鳴っている" : "停止中";
+}
+
+/* ---------- guide (step bar + banner) ---------- */
+const ICONS = {
+  hand: '<path d="M10 38h30"/><path d="M19 33V20a2.5 2.5 0 0 1 5 0v10M24 29V16a2.5 2.5 0 0 1 5 0v13M29 29V19a2.5 2.5 0 0 1 5 0v12"/>',
+  phone: '<path d="M10 36h30"/><rect x="15" y="27" width="20" height="7" rx="2"/>',
+  up: '<path d="M25 37V13M16 22l9-9 9 9"/>',
+  down: '<path d="M25 13v24M16 28l9 9 9-9"/>',
+  ear: '<path d="M18 30c0-9 3-15 9-15s8 5 8 9-4 5-5 8-2 6-6 6"/><path d="M23 25a3 3 0 0 1 5 0"/>',
+  slope: '<path d="M12 36L38 30" opacity=".5"/><path d="M12 36L38 14"/>',
+  wait: '<circle cx="25" cy="25" r="3"/>',
+  play: '<path d="M20 15v20l15-10z" fill="currentColor"/>'
+};
+let lastGuide = "";
+function guide(){
+  let key, title, sub = "", icon, ok = false;
+  if(!zeroed){
+    key = "zero"; icon = S.mode === "phone" ? "phone" : "hand";
+    title = S.mode === "phone" ? "スマホを机に置いて、そのまま止めてください" : "手を机の上に置いて、そのまま止めてください";
+    sub = "輪が一周すると、その高さが0になります";
+  } else if(S.mode === "demo"){
+    key = "demo"; icon = "play"; title = "見本：自動で持ち上げています"; sub = "下のゲインを変えると、音の上がり方が変わります";
+  } else if(moving){
+    key = "moving"; icon = "ear"; title = "音の上がり方を聞いてみて"; sub = "手の高さに合わせて音が変わります";
+  } else if(h >= 20){
+    key = "down"; icon = "down"; title = "机の上に戻してください"; sub = "戻すと音も最初の高さに戻ります";
+  } else if(h < 5 && lifts >= 2){
+    key = "compare"; icon = "slope"; title = "ゲインを変えて、もう一度持ち上げてみよう"; sub = "重さの感じ方は変わった？ 目を閉じても試してみて"; ok = true;
+  } else {
+    key = "up"; icon = "up"; title = "ゆっくり30 cmくらい持ち上げてみよう"; sub = "右のメーターの点線（目安）くらいまで";
+  }
+  if(key !== lastGuide){
+    $("btitle").textContent = title; $("bsub").textContent = sub;
+    $("bicon").innerHTML = ICONS[icon]; $("banner").classList.toggle("ok", ok); lastGuide = key;
+  }
+  $("ring").setAttribute("stroke-dashoffset", String(132 * (1 - (zeroed ? 0 : zeroProgress))));
+  const step = !zeroed ? 1 : (lifts >= 2 || S.mode === "demo") ? 3 : 2;
+  [1,2,3].forEach(i => { const el = $("st" + i); el.classList.toggle("now", i === step); el.classList.toggle("done", i < step); });
 }
 
 /* ---------- audio ---------- */
 let ctx = null, osc = null, amp = null;
 function initAudio(){
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if(!ctx){
-    ctx = new AC();
-    osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = BASE;
-    amp = ctx.createGain(); amp.gain.value = 0;
-    osc.connect(amp).connect(ctx.destination); osc.start();
-  }
+  const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+  if(!ctx){ ctx = new AC(); osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = BASE;
+    amp = ctx.createGain(); amp.gain.value = 0; osc.connect(amp).connect(ctx.destination); osc.start(); }
   if(ctx.state === "suspended") ctx.resume();
 }
 function tick(){
   const now = performance.now();
-  const st = Math.max(-MAXST * 1.5, Math.min(MAXST * 1.5, S.dir * S.gain * h));
+  if(S.mode === "demo" && S.running) demoStep(now);
+  // count lifts
+  if(zeroed){ peak = Math.max(peak, h); if(peak > 15 && h < 3){ lifts++; peak = 0; } }
+  const st = Math.max(-36, Math.min(36, S.dir * S.gain * h));
   const on = S.running && zeroed && (S.snd === "always" || moving || now < gateUntil);
-  if(ctx){
-    const t = ctx.currentTime;
-    osc.frequency.setTargetAtTime(BASE * Math.pow(2, st / 12), t, 0.012);
-    amp.gain.setTargetAtTime(on ? 0.2 : 0, t, on ? 0.02 : 0.07);
-  }
+  if(ctx){ const t = ctx.currentTime; osc.frequency.setTargetAtTime(BASE * Math.pow(2, st / 12), t, 0.012); amp.gain.setTargetAtTime(on ? 0.2 : 0, t, on ? 0.02 : 0.07); }
   render(st, on);
+  if(S.running) guide();
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 
-/* ---------- calibration ring ---------- */
-function showHint(text){
-  $("hint").hidden = false; $("hinttext").textContent = text;
-  $("ringhand").toggleAttribute("hidden", S.mode !== "cam");
-  $("ringphone").toggleAttribute("hidden", S.mode === "cam");
-}
-function ring(p){ $("ringfill").setAttribute("stroke-dashoffset", String(264 * (1 - Math.max(0, Math.min(1, p))))); }
-function hideHint(){ $("hint").hidden = true; ring(0); }
-$("zero").onclick = () => { zeroNow(); };
 let zeroNow = () => {};
+$("zero").onclick = () => zeroNow();
+const showErr = m => { $("err").textContent = m; $("err").hidden = false; };
 
-function showErr(msg){ $("err").textContent = msg; $("err").hidden = false; }
+/* ---------- demo ---------- */
+let demoT0 = 0;
+function demoStep(now){
+  const t = ((now - demoT0) / 1000) % 4.6;
+  const e = x => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, x)));
+  const prev = h;
+  h = t < 0.5 ? 0 : t < 2.0 ? 30 * e((t - 0.5) / 1.5) : t < 2.8 ? 30 : t < 4.0 ? 30 * (1 - e((t - 2.8) / 1.2)) : 0;
+  moving = Math.abs(h - prev) > 0.05; if(moving) gateUntil = now + 120;
+}
 
-/* ---------- camera mode ---------- */
-let stream = null, landmarker = null, camRaf = 0, camState = null;
+/* ---------- camera ---------- */
+let stream = null, landmarker = null, camRaf = 0, cs = null;
 async function startCam(){
-  $("campanel").hidden = false; $("live").classList.remove("phone");
-  showHint("読み込み中");
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: S.facing }, audio: false });
-  }catch(e){ showErr("カメラを使えませんでした。ブラウザのカメラ許可を確認してください。"); hideHint(); return; }
-  $("campanel").classList.toggle("mirror", S.facing === "user");
+  $("campanel").hidden = false; $("live").classList.remove("nocam");
+  $("flip").hidden = !TOUCH;
+  $("btitle").textContent = "カメラを準備しています…"; $("bsub").textContent = "初回は手の検出の読み込みに数秒かかります"; lastGuide = "loading";
+  try{ stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: S.facing }, audio: false }); }
+  catch(e){ showErr("カメラを使えませんでした。ブラウザの設定でカメラを許可してから、もう一度お試しください。"); return; }
+  $("camwrap").classList.toggle("mirror", S.facing === "user");
   const video = $("video"); video.srcObject = stream; await video.play();
   if(!landmarker){
     try{
@@ -360,74 +453,67 @@ async function startCam(){
       const opts = d => ({ baseOptions: { modelAssetPath: MODEL, delegate: d }, runningMode: "VIDEO", numHands: 1 });
       try{ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("GPU")); }
       catch(_){ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("CPU")); }
-    }catch(e){ showErr("手の検出を読み込めませんでした。通信状況を確認して開き直してください。"); hideHint(); return; }
+    }catch(e){ showErr("手の検出を読み込めませんでした。通信状況を確認して、ページを開き直してください。"); return; }
   }
-  camState = { y0: null, cmPerPx: null, ySm: null, hist: [], lastSeen: 0, lastVT: -1, prevH: 0, prevT: 0 };
-  zeroed = false; showHint("手を机に置いて止める");
-  zeroNow = () => { if(camState && camState.ySm != null && camState.palm){ camState.y0 = camState.ySm; camState.cmPerPx = 9.5 / camState.palm; zeroed = true; h = 0; hideHint(); } };
+  cs = { y0: null, k: null, y: null, palm: null, hist: [], seen: 0, vt: -1, ph: 0, pt: 0 };
+  zeroed = false; lastGuide = "";
+  zeroNow = () => { if(cs && cs.y != null){ cs.y0 = cs.y; cs.k = 9.5 / cs.palm; zeroed = true; h = 0; peak = 0; } };
   camLoop();
 }
 function camLoop(){
   const video = $("video"), cv = $("overlay"), c = cv.getContext("2d");
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--h").trim();
   const step = () => {
     if(!stream) return;
     const W = video.videoWidth, H = video.videoHeight;
-    if(W && video.currentTime !== camState.lastVT){
-      camState.lastVT = video.currentTime;
+    if(W && video.currentTime !== cs.vt){
+      cs.vt = video.currentTime;
       if(cv.width !== W){ cv.width = W; cv.height = H; }
       const now = performance.now();
-      const res = landmarker.detectForVideo(video, now);
+      const lm = landmarker.detectForVideo(video, now).landmarks?.[0];
       c.clearRect(0, 0, W, H);
-      const lm = res.landmarks && res.landmarks[0];
       if(lm){
-        camState.lastSeen = now;
-        const ids = [0, 5, 9, 13, 17];
-        let cx = 0, cy = 0; ids.forEach(i => { cx += lm[i].x; cy += lm[i].y; }); cx = cx / 5 * W; cy = cy / 5 * H;
+        cs.seen = now;
+        let cx = 0, cy = 0; [0,5,9,13,17].forEach(i => { cx += lm[i].x; cy += lm[i].y; }); cx = cx / 5 * W; cy = cy / 5 * H;
         const palm = Math.hypot((lm[0].x - lm[9].x) * W, (lm[0].y - lm[9].y) * H);
-        camState.ySm = camState.ySm == null ? cy : camState.ySm + 0.55 * (cy - camState.ySm);
-        camState.palm = camState.palm ? camState.palm + 0.1 * (palm - camState.palm) : palm;
-        // stillness for auto zero
-        camState.hist.push({ t: now, y: camState.ySm });
-        while(camState.hist.length && now - camState.hist[0].t > 1000) camState.hist.shift();
+        cs.y = cs.y == null ? cy : cs.y + 0.55 * (cy - cs.y);
+        cs.palm = cs.palm ? cs.palm + 0.1 * (palm - cs.palm) : palm;
         if(!zeroed){
-          const ys = camState.hist.map(p => p.y), span = Math.max(...ys) - Math.min(...ys);
-          const dur = now - camState.hist[0].t;
-          const still = span < camState.palm * 0.06;
-          if(!still) camState.hist = camState.hist.slice(-1);
-          ring(still ? dur / 1000 : 0);
-          if(still && dur > 950) zeroNow();
+          cs.hist.push({ t: now, y: cs.y }); while(now - cs.hist[0].t > 1000) cs.hist.shift();
+          const ys = cs.hist.map(p => p.y), still = Math.max(...ys) - Math.min(...ys) < cs.palm * 0.06;
+          if(!still) cs.hist = cs.hist.slice(-1);
+          zeroProgress = still ? (now - cs.hist[0].t) / 1000 : 0;
+          if(still && zeroProgress >= 0.95) zeroNow();
+        } else {
+          h = Math.max(0, (cs.y0 - cs.y) * cs.k);
+          const dt = (now - cs.pt) / 1000;
+          if(dt > 0){ moving = Math.abs(h - cs.ph) / dt > 4; if(moving) gateUntil = now + 180; }
+          cs.ph = h; cs.pt = now;
+          c.strokeStyle = accent; c.lineWidth = 4; c.setLineDash([14, 10]);
+          c.beginPath(); c.moveTo(0, cs.y0); c.lineTo(W, cs.y0); c.stroke(); c.setLineDash([]);
         }
-        if(zeroed){
-          h = Math.max(0, (camState.y0 - camState.ySm) * camState.cmPerPx);
-          const dt = (now - camState.prevT) / 1000;
-          if(dt > 0){ const sp = Math.abs(h - camState.prevH) / dt; moving = sp > 4; if(moving) gateUntil = now + 180; }
-          camState.prevH = h; camState.prevT = now;
-        }
-        // overlay
-        c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--h");
-        c.beginPath(); c.arc(cx, cy, 14, 0, Math.PI * 2); c.fill();
-        if(zeroed){
-          c.strokeStyle = c.fillStyle; c.lineWidth = 4; c.setLineDash([12, 10]);
-          c.beginPath(); c.moveTo(0, camState.y0); c.lineTo(W, camState.y0); c.stroke(); c.setLineDash([]);
-        }
+        c.fillStyle = accent; c.beginPath(); c.arc(cx, cy, 16, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = "#fff"; c.lineWidth = 3; c.stroke();
       }
-      $("lost").hidden = now - camState.lastSeen < 400 || !zeroed;
-      if(now - camState.lastSeen > 400){ moving = false; }
+      const lost = now - cs.seen > 400;
+      $("lost").hidden = !lost;
+      if(lost){ moving = false; if(!zeroed) zeroProgress = 0; }
     }
     camRaf = requestAnimationFrame(step);
   };
   step();
 }
+$("flip").onclick = () => { S.facing = S.facing === "user" ? "environment" : "user"; stopAll(); begin(); };
 
-/* ---------- phone mode ---------- */
+/* ---------- phone sensor ---------- */
 let ph = null;
 function startPhone(){
-  $("campanel").hidden = true; $("live").classList.add("phone");
-  zeroed = false; h = 0; showHint("机に置いて止める");
-  ph = { v: 0, lastT: null, g: null, win: [], segStart: 0, wasStill: true, stillSince: 0 };
-  zeroNow = () => { h = 0; if(ph) ph.v = 0; zeroed = true; hideHint(); };
+  $("campanel").hidden = true; $("live").classList.add("nocam");
+  zeroed = false; h = 0; lastGuide = "";
+  ph = { v: 0, lastT: null, g: null, win: [], segStart: 0, wasStill: true, stillSince: performance.now() };
+  zeroNow = () => { h = 0; if(ph) ph.v = 0; zeroed = true; peak = 0; };
   const DME = window.DeviceMotionEvent;
-  if(!DME){ showErr("このブラウザでは動きのセンサーが使えません。カメラに切り替えてください。"); return; }
+  if(!DME){ showErr("このブラウザでは動きのセンサーが使えません。「カメラで手を写す」を選んでください。"); return; }
   const attach = () => window.addEventListener("devicemotion", onMotion);
   if(typeof DME.requestPermission === "function"){
     DME.requestPermission().then(r => r === "granted" ? attach() : showErr("動きのセンサーが許可されませんでした。")).catch(() => showErr("動きのセンサーの許可に失敗しました。"));
@@ -442,47 +528,46 @@ function onMotion(e){
   const gm = Math.hypot(...ph.g) || 9.81, u = ph.g.map(x => x / gm);
   const acc = e.acceleration;
   const aUp = (acc && acc.x != null) ? acc.x * u[0] + acc.y * u[1] + acc.z * u[2] : g[0] * u[0] + g[1] * u[1] + g[2] * u[2] - gm;
-  ph.win.push({ t: now, a: Math.abs(aUp) }); while(ph.win.length && now - ph.win[0].t > 250) ph.win.shift();
+  ph.win.push({ t: now, a: Math.abs(aUp) }); while(now - ph.win[0].t > 250) ph.win.shift();
   const still = Math.max(...ph.win.map(w => w.a)) < 0.2;
   if(still){
-    if(!ph.wasStill){
-      // 動きが終わった瞬間：下へ動いて止まったなら机に戻ったとみなして0
-      if(h - ph.segStart < -3) h = 0;
-      ph.stillSince = now;
-    }
+    if(!ph.wasStill){ if(h - ph.segStart < -3) h = 0; ph.stillSince = now; }
     ph.v = 0;
-    if(!zeroed){ ring((now - ph.stillSince) / 700); if(now - ph.stillSince > 700) zeroNow(); }
+    if(!zeroed){ zeroProgress = (now - ph.stillSince) / 700; if(zeroProgress >= 1) zeroNow(); }
   } else {
     if(ph.wasStill) ph.segStart = h;
     const a = Math.abs(aUp) < 0.05 ? 0 : aUp;
-    ph.v += a * dt; ph.v *= (1 - 0.3 * dt);
-    h += ph.v * dt * 100;
-    if(h < 0){ h = 0; if(ph.v < 0) ph.v = 0; }
-    if(h > 80) h = 80;
-    if(!zeroed){ ph.stillSince = now; ring(0); }
+    ph.v += a * dt; ph.v *= (1 - 0.3 * dt); h += ph.v * dt * 100;
+    if(h < 0){ h = 0; if(ph.v < 0) ph.v = 0; } if(h > 80) h = 80;
+    if(!zeroed){ ph.stillSince = now; zeroProgress = 0; }
   }
   ph.wasStill = still;
-  moving = !still && Math.abs(ph.v) > 0.03;
-  if(moving) gateUntil = now + 150;
+  moving = !still && Math.abs(ph.v) > 0.03; if(moving) gateUntil = now + 150;
 }
 
-/* ---------- start / stop ---------- */
+/* ---------- flow ---------- */
 function stopAll(){
   if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   cancelAnimationFrame(camRaf);
   window.removeEventListener("devicemotion", onMotion); ph = null;
-  zeroed = false; h = 0; moving = false; $("err").hidden = true;
+  zeroed = false; h = 0; moving = false; lifts = 0; peak = 0; zeroProgress = 0; $("err").hidden = true;
 }
 function begin(){
   $("err").hidden = true;
-  if(S.mode === "cam") startCam(); else startPhone();
+  if(S.mode === "cam") startCam();
+  else if(S.mode === "phone") startPhone();
+  else { $("campanel").hidden = true; $("live").classList.add("nocam"); zeroed = true; demoT0 = performance.now(); lastGuide = ""; }
 }
-$("go").onclick = () => {
-  try{ initAudio(); }catch(e){ showErr("このブラウザでは音を出せません。"); }
-  S.running = true;
-  $("start").hidden = true; $("live").hidden = false; $("controls").hidden = false;
+function go(mode){
+  initAudio(); S.mode = mode; S.running = true;
+  $("start").hidden = true; $("live-wrap").hidden = false; window.scrollTo(0, 0);
   begin();
-};
+}
+$("go-cam").onclick = () => go("cam");
+$("go-phone").onclick = () => go("phone");
+$("go-demo").onclick = () => go("demo");
+$("back").onclick = () => { stopAll(); S.running = false; $("live-wrap").hidden = true; $("start").hidden = false; };
+if(location.hash === "#demo") go("demo");
 </script>
 </body>
 </html>
