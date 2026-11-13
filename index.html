@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>音のC/D比デモ</title>
+<style>
+/* Layout: スマホ縦持ち1画面。上に読み値、真ん中に操作、下に高さと音の推移グラフ */
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --fg:#17202b; --muted:#5b6677; --line:#d6dbe3;
+  --accent:#1f6f8b; --pitch:#b3591c; --ok:#2e7d4f; --warn:#a3313b;
+  --f:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#10141a; --surface:#1a2029; --fg:#e6eaf0; --muted:#9aa4b5; --line:#2e3644;
+  --accent:#5fb6d3; --pitch:#ef9a5f; --ok:#6ccb93; --warn:#f08a92; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.6;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:560px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+h1{font-size:20px;margin:0}
+p{margin:0}
+.muted{color:var(--muted);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.read{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.read div{display:flex;flex-direction:column}
+.read .k{font-size:12px;color:var(--muted)}
+.read .v{font-family:var(--mono);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+#hval{color:var(--accent)} #sval{color:var(--pitch)}
+.status{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.dot.on{background:var(--ok)}
+.label{font-size:12.5px;color:var(--muted);font-weight:600}
+.seg{display:grid;gap:6px}
+.seg.g5{grid-template-columns:repeat(5,1fr)}
+.seg.g2{grid-template-columns:repeat(2,1fr)}
+button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:9px;padding:9px 6px;cursor:pointer;touch-action:manipulation}
+button[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg);font-weight:700}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button small{display:block;font-size:11px;opacity:.8;font-weight:400}
+#start{font-size:18px;padding:14px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.row{display:flex;gap:8px}
+.row button{flex:1}
+canvas{width:100%;height:150px;display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.legend b{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+input[type=range]{width:100%}
+ol{margin:0;padding-left:1.2em;font-size:13.5px}
+.err{color:var(--warn);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>音のC/D比デモ</h1>
+  <p class="muted">スマホを机から持ち上げると、高さに合わせて音の高さが変わります。ゲイン（1 cmあたり何半音変わるか）を変えて、重さの感じ方が変わるか試すためのプロトタイプです。</p>
+
+  <button type="button" id="start">スタート（センサーと音を有効にする）</button>
+  <p class="err" id="err" hidden></p>
+
+  <div class="card">
+    <div class="status"><span class="dot" id="sdot"></span><span id="stext">まだ始まっていません</span></div>
+    <div class="read">
+      <div><span class="k">高さ</span><span class="v" id="hval">0.0<small style="font-size:14px"> cm</small></span></div>
+      <div><span class="k">音（最初の音から）</span><span class="v" id="sval">+0.0<small style="font-size:14px"> 半音</small></span></div>
+    </div>
+    <p class="muted" id="fval">440 Hz・停止中</p>
+  </div>
+
+  <div class="card">
+    <span class="label">ゲイン（1 cmあたりの半音）</span>
+    <div class="seg g5" role="group" aria-label="ゲイン">
+      <button type="button" data-gain="0.05">0.05<small>小</small></button>
+      <button type="button" data-gain="0.1">0.1<small></small></button>
+      <button type="button" data-gain="0.2" aria-pressed="true">0.2<small>標準</small></button>
+      <button type="button" data-gain="0.4">0.4<small></small></button>
+      <button type="button" data-gain="0.8">0.8<small>大</small></button>
+    </div>
+    <p class="muted" id="gainnote">30 cm持ち上げると +6半音</p>
+
+    <span class="label">向き</span>
+    <div class="seg g2" role="group" aria-label="向き">
+      <button type="button" data-dir="1" aria-pressed="true">上げると音が上がる</button>
+      <button type="button" data-dir="-1">上げると音が下がる</button>
+    </div>
+
+    <span class="label">鳴らし方</span>
+    <div class="seg g2" role="group" aria-label="鳴らし方">
+      <button type="button" data-mode="moving" aria-pressed="true">動いている間だけ</button>
+      <button type="button" data-mode="always">ずっと鳴らす</button>
+    </div>
+
+    <div class="row">
+      <button type="button" id="zero">今の高さを0にする</button>
+      <button type="button" id="mute" aria-pressed="false">音を止める</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="label">直近6秒の推移</span>
+    <canvas id="cv" width="1040" height="300" aria-label="高さと音の推移グラフ"></canvas>
+    <div class="legend"><span><b style="background:var(--accent)"></b>高さ（0〜50 cm）</span><span><b style="background:var(--pitch)"></b>音（±24半音）</span></div>
+  </div>
+
+  <div class="card">
+    <span class="label">PCで試す（シミュレーション）</span>
+    <p class="muted">センサーがない端末では、スライダーで高さを動かせます。動かすとスマホと同じように音が変わります。</p>
+    <input type="range" id="sim" min="0" max="50" step="0.1" value="0" aria-label="シミュレーションの高さ（cm）">
+  </div>
+
+  <div class="card">
+    <span class="label">使い方</span>
+    <ol>
+      <li>スマホを画面を上にして机に置き、「スタート」を押す（iPhoneは動きの許可を求められます）</li>
+      <li>有線イヤホンがおすすめ（Bluetoothは音が遅れます）。iPhoneはマナーモードを解除</li>
+      <li>1〜2秒かけて20〜30 cm持ち上げ、止めて、机に戻す</li>
+      <li>机に置いてじっとさせると高さが0に戻ります。ずれたら「今の高さを0にする」</li>
+      <li>ゲインを変えて同じように持ち上げ、重さの感じ方を比べる。目を閉じても試す</li>
+    </ol>
+    <p class="muted">高さは加速度センサーから推定しているので、数cmの誤差があります。プロトタイプなので誇張した値を使っています。</p>
+  </div>
+  <p class="muted" id="dbg"></p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var BASE = 440;           // 最初の音（Hz）
+  var MAX_H = 0.8;          // m
+  var state = {gain:0.2, dir:1, mode:"moving", muted:false, running:false, sim:false};
+  var h = 0, v = 0, aUpLast = 0, lastT = null, gLP = null, win = [], moving = false, gateUntil = 0;
+  var hist = [];
+  var $ = function(id){return document.getElementById(id);};
+
+  // ---------- Audio ----------
+  var ctx = null, osc = null, amp = null;
+  function initAudio(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) throw new Error("このブラウザでは音を出せません");
+    if(!ctx){
+      ctx = new AC();
+      osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = BASE;
+      amp = ctx.createGain(); amp.gain.value = 0;
+      osc.connect(amp); amp.connect(ctx.destination); osc.start();
+    }
+    if(ctx.state === "suspended") ctx.resume();
+  }
+  function semitones(){ return state.dir * state.gain * h * 100; }
+  function updateAudio(now){
+    var st = Math.max(-36, Math.min(36, semitones()));
+    var f = BASE * Math.pow(2, st/12);
+    var on;
+    if(state.mode === "always") on = true;
+    else on = moving || now < gateUntil;
+    if(state.muted || !state.running) on = false;
+    if(ctx){
+      var t = ctx.currentTime;
+      osc.frequency.setTargetAtTime(f, t, 0.012);
+      amp.gain.setTargetAtTime(on ? 0.18 : 0, t, on ? 0.02 : 0.06);
+    }
+    return {st:st, f:f, on:on};
+  }
+
+  // ---------- Motion -> height ----------
+  function onMotion(e){
+    if(state.sim) return;
+    var aig = e.accelerationIncludingGravity;
+    if(!aig || aig.x == null) return;
+    var now = performance.now();
+    var g = [aig.x, aig.y, aig.z];
+    if(lastT === null){ lastT = now; gLP = g.slice(); return; }
+    var dt = (now - lastT) / 1000; lastT = now;
+    if(dt <= 0 || dt > 0.1){ return; }
+    var k = 1 - Math.exp(-dt / 0.6);
+    for(var i=0;i<3;i++) gLP[i] += k * (g[i] - gLP[i]);
+    var gm = Math.hypot(gLP[0], gLP[1], gLP[2]) || 9.81;
+    var u = [gLP[0]/gm, gLP[1]/gm, gLP[2]/gm];
+    var acc = e.acceleration, aUp;
+    if(acc && acc.x != null){
+      aUp = acc.x*u[0] + acc.y*u[1] + acc.z*u[2];
+    } else {
+      aUp = g[0]*u[0] + g[1]*u[1] + g[2]*u[2] - gm;
+    }
+    aUpLast = aUp;
+    var rr = e.rotationRate, rot = null;
+    if(rr && rr.alpha != null) rot = Math.hypot(rr.alpha, rr.beta, rr.gamma);
+
+    var a = Math.abs(aUp) < 0.06 ? 0 : aUp;
+    v += a * dt;
+    v *= (1 - 0.4 * dt);            // ゆるい減衰でドリフトを抑える
+    h += v * dt;
+
+    win.push({t:now, a:Math.abs(aUp), r:rot});
+    while(win.length && now - win[0].t > 700) win.shift();
+    var maxShort = 0, maxLong = 0, maxRot = 0, span = win.length ? now - win[0].t : 0;
+    for(var j=0;j<win.length;j++){
+      var w = win[j];
+      if(now - w.t < 200) maxShort = Math.max(maxShort, w.a);
+      maxLong = Math.max(maxLong, w.a);
+      if(w.r != null) maxRot = Math.max(maxRot, w.r);
+    }
+    // 止まったら速さを0に（ZUPT）
+    if(maxShort < 0.18) v = 0;
+    // 机の上でじっとしたら高さを0に
+    var still = span > 550 && maxLong < 0.1;
+    if(still && (rot != null ? maxRot < 1.5 : h < 0.1)){ h = 0; v = 0; }
+
+    if(h < 0){ h = 0; if(v < 0) v = 0; }
+    if(h > MAX_H){ h = MAX_H; if(v > 0) v = 0; }
+    moving = Math.abs(v) > 0.04 || Math.abs(a) > 0.5;
+    if(moving) gateUntil = now + 150;
+  }
+
+  // ---------- Simulation ----------
+  var simPrev = null;
+  $("sim").addEventListener("input", function(){
+    if(!state.running){ startCommon(true); }
+    state.sim = true;
+    var now = performance.now();
+    var nh = parseFloat(this.value) / 100;
+    if(simPrev){ var dt = (now - simPrev.t)/1000; if(dt > 0) v = (nh - simPrev.h)/dt; }
+    simPrev = {t:now, h:nh};
+    h = nh; moving = Math.abs(v) > 0.03; if(moving) gateUntil = now + 250;
+    $("stext").textContent = "シミュレーション中（スライダー）";
+  });
+
+  // ---------- Start ----------
+  function showErr(msg){ var el = $("err"); el.textContent = msg; el.hidden = false; }
+  function startCommon(simOnly){
+    try{ initAudio(); }catch(err){ showErr(err.message); }
+    state.running = true;
+    $("sdot").classList.add("on");
+    $("start").textContent = "動作中";
+    if(simOnly) $("stext").textContent = "シミュレーション中（スライダー）";
+  }
+  $("start").addEventListener("click", function(){
+    startCommon(false);
+    var DME = window.DeviceMotionEvent;
+    if(!DME){ $("stext").textContent = "動きのセンサーがありません。下のスライダーで試せます"; return; }
+    var attach = function(){
+      window.addEventListener("devicemotion", onMotion);
+      state.sim = false;
+      $("stext").textContent = "センサー動作中。机に置いてじっとさせると0に戻ります";
+      setTimeout(function(){ if(lastT === null) $("stext").textContent = "センサーの値が来ません。PCならスライダーで試してください"; }, 1500);
+    };
+    if(typeof DME.requestPermission === "function"){
+      DME.requestPermission().then(function(res){
+        if(res === "granted") attach();
+        else showErr("動きのセンサーが許可されませんでした。設定から許可するか、ページを開き直してください。");
+      }).catch(function(err){ showErr("センサーの許可に失敗しました：" + err.message); });
+    } else attach();
+  });
+
+  // ---------- Controls ----------
+  function bindSeg(attr, key, parse){
+    var btns = document.querySelectorAll("[data-" + attr + "]");
+    btns.forEach(function(b){
+      b.addEventListener("click", function(){
+        btns.forEach(function(o){ o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+        state[key] = parse(b.getAttribute("data-" + attr));
+        updateGainNote();
+      });
+    });
+  }
+  bindSeg("gain", "gain", parseFloat);
+  bindSeg("dir", "dir", function(x){ return parseInt(x, 10); });
+  bindSeg("mode", "mode", function(x){ return x; });
+  function updateGainNote(){
+    var s = state.dir * state.gain * 30;
+    $("gainnote").textContent = "30 cm持ち上げると " + (s >= 0 ? "+" : "") + s.toFixed(1) + "半音";
+  }
+  $("zero").addEventListener("click", function(){ h = 0; v = 0; $("sim").value = 0; });
+  $("mute").addEventListener("click", function(){
+    state.muted = !state.muted;
+    this.setAttribute("aria-pressed", state.muted ? "true" : "false");
+    this.textContent = state.muted ? "音を出す" : "音を止める";
+  });
+
+  // ---------- Render ----------
+  var cv = $("cv"), cx = cv.getContext("2d");
+  function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function draw(now){
+    var W = cv.width, H = cv.height;
+    cx.clearRect(0,0,W,H);
+    cx.strokeStyle = css("--line"); cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(0,H/2); cx.lineTo(W,H/2); cx.stroke();
+    var t0 = now - 6000;
+    function line(color, fn){
+      cx.strokeStyle = color; cx.lineWidth = 5; cx.beginPath();
+      var first = true;
+      hist.forEach(function(p){
+        var x = (p.t - t0) / 6000 * W, y = fn(p);
+        if(first){ cx.moveTo(x,y); first = false; } else cx.lineTo(x,y);
+      });
+      cx.stroke();
+    }
+    line(css("--accent"), function(p){ return H - 10 - (p.h*100/50) * (H-20); });
+    line(css("--pitch"), function(p){ return H/2 - (p.st/24) * (H/2 - 10); });
+  }
+  function loop(){
+    var now = performance.now();
+    var a = updateAudio(now);
+    $("hval").firstChild.nodeValue = (h*100).toFixed(1);
+    $("sval").firstChild.nodeValue = (a.st >= 0 ? "+" : "") + a.st.toFixed(1);
+    $("fval").textContent = Math.round(a.f) + " Hz・" + (a.on ? "鳴っている" : "停止中") + (moving ? "・動いている" : "");
+    hist.push({t:now, h:h, st:a.st});
+    while(hist.length && now - hist[0].t > 6000) hist.shift();
+    draw(now);
+    $("dbg").textContent = state.running && !state.sim ? "縦の加速度 " + aUpLast.toFixed(2) + " m/s²・速さ " + v.toFixed(2) + " m/s" : "";
+    requestAnimationFrame(loop);
+  }
+  updateGainNote();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
