@@ -117,6 +117,17 @@ h1,h2,h3,p{margin:0}
 .seg button{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;font-size:13.5px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:0 1px 2px #0002}
 .rowbtns{display:flex;gap:8px;flex-wrap:wrap}
+kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border-radius:7px;border:1px solid var(--line);border-bottom-width:3px;background:var(--surface);font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg)}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px}
+.key{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.key .ks{display:flex;gap:4px;flex:none}
+.blind .keys{max-width:640px;width:100%;padding:0 20px;margin-top:14px}
+.blind kbd{background:transparent;color:var(--surface);border-color:color-mix(in srgb,var(--surface) 45%,transparent)}
+.blind .key{color:var(--surface);opacity:.85;font-weight:400}
+.blind .big{font-size:20px}
+.stage .blind svg{width:56px;height:56px;max-height:none}
+.secret{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--p);background:var(--p-soft);border-radius:99px;padding:2px 10px}
+.gains.hide .gain{border-color:var(--line)!important;background:var(--surface)!important;box-shadow:none!important}
 .err{border:1px solid var(--p);color:var(--p);background:var(--p-soft);border-radius:12px;padding:10px 14px;font-size:14px}
 </style>
 </head>
@@ -262,14 +273,15 @@ h1,h2,h3,p{margin:0}
       </svg>
       <div class="blind" id="blind" hidden>
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
-        目を閉じて、音だけで比べてみよう<span>もう一度押すと表示に戻ります</span>
+        <span class="big">目を閉じて、音だけで比べてみよう</span><span id="blindsub">キーボードだけで操作できます。操作するたびに声でお知らせします</span>
+        <div class="keys keyhelp"></div>
       </div>
     </div>
   </div>
 
   <div class="card controls" id="controls">
     <div class="crow">
-      <div class="clabel"><b>ゲイン</b><span>手を1 cm上げたとき、音が何半音上がるか</span></div>
+      <div class="clabel"><b>ゲイン</b><span>手を1 cm上げたとき、音が何半音上がるか</span><span class="secret" id="secret" hidden>ランダム中（答えは A キー）</span></div>
       <div>
         <div class="gains" id="gains" role="group" aria-label="ゲイン"></div>
         <div class="gain-scale"><span>← 音があまり上がらない（重い？）</span><span>よく上がる（軽い？）→</span></div>
@@ -288,6 +300,10 @@ h1,h2,h3,p{margin:0}
         <button type="button" data-snd="moving" aria-pressed="true">動いている間だけ</button>
         <button type="button" data-snd="always" aria-pressed="false">ずっと鳴らす</button>
       </div>
+    </div>
+    <div class="crow" id="kbrow">
+      <div class="clabel"><b>キーボード</b><span>物を持ったまま、片手で操作できます。押すと声でお知らせ</span></div>
+      <div class="keys keyhelp"></div>
     </div>
     <div class="crow">
       <div class="clabel"><b>その他</b><span>ずれたら0に合わせ直す</span></div>
@@ -321,7 +337,7 @@ GAINS.forEach(([g, w], gi) => {
   b.type = "button"; b.className = "gain"; b.setAttribute("aria-pressed", g === S.gain ? "true" : "false");
   const rise = RISE[gi];
   b.innerHTML = `<svg width="48" height="34" viewBox="0 0 48 34"><path d="M5 29H43" stroke="var(--line)" stroke-width="2"/><path d="M5 29L43 ${29 - rise}" stroke="var(--p)" stroke-width="3" stroke-linecap="round"/></svg><span class="v">${g}</span><span class="w">${w}</span>`;
-  b.onclick = () => { S.gain = g; document.querySelectorAll(".gain").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); };
+  b.onclick = () => setGain(gi, false, false);
   $("gains").appendChild(b);
 });
 function bindSeg(attr, key, parse){
@@ -334,6 +350,67 @@ $("eye").onclick = () => {
   S.blind = !S.blind; $("eye").setAttribute("aria-pressed", S.blind ? "true" : "false");
   $("blind").hidden = !S.blind; $("eyetext").textContent = S.blind ? "表示に戻す" : "目を閉じて試す";
 };
+
+
+/* ---------- keyboard + voice (目を閉じたまま操作) ---------- */
+const KEYS = [
+  [["←","→"], "ゲインを下げる／上げる"], [["1","…","5"], "ゲインを直接選ぶ"],
+  [["Space"], "今の高さを0にする"], [["Enter"], "目を閉じるモード"],
+  [["R"], "ランダムなゲイン（答えを隠す）"], [["A"], "今のゲインを読み上げる"],
+  [["D"], "音の向きを切り替える"], [["M"], "鳴らし方を切り替える"]
+];
+document.querySelectorAll(".keyhelp").forEach(el => {
+  el.innerHTML = KEYS.map(([ks, t]) => `<div class="key"><span class="ks">${ks.map(k => k === "…" ? "<span>…</span>" : `<kbd>${k}</kbd>`).join("")}</span>${t}</div>`).join("");
+});
+if(TOUCH){ $("kbrow").hidden = true; document.querySelector(".blind .keyhelp").hidden = true; $("blindsub").textContent = "もう一度「表示に戻す」を押すと戻ります"; }
+
+let jaVoice = null;
+function pickVoice(){ try{ jaVoice = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang)) || null; }catch(_){} }
+if("speechSynthesis" in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function beep(n){
+  if(!ctx) return;
+  for(let i = 0; i < n; i++){
+    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.14;
+    o.frequency.value = 1200; o.connect(g).connect(ctx.destination);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.01); g.gain.linearRampToValueAtTime(0, t + 0.08);
+    o.start(t); o.stop(t + 0.1);
+  }
+}
+function say(text, fallbackBeeps = 1){
+  if("speechSynthesis" in window){
+    try{
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text); u.lang = "ja-JP"; u.rate = 1.15; if(jaVoice) u.voice = jaVoice;
+      speechSynthesis.speak(u); return;
+    }catch(_){}
+  }
+  beep(fallbackBeeps);
+}
+S.gi = 2; S.hidden = false;
+const gainName = i => `ゲイン${i + 1}、${GAINS[i][1]}`;
+function setGain(i, announce, hidden){
+  i = Math.max(0, Math.min(GAINS.length - 1, i));
+  S.gi = i; S.gain = GAINS[i][0]; S.hidden = hidden;
+  document.querySelectorAll(".gain").forEach((o, k) => o.setAttribute("aria-pressed", k === i ? "true" : "false"));
+  $("gains").classList.toggle("hide", hidden); $("secret").hidden = !hidden;
+  if(announce) say(hidden ? "ランダム" : gainName(i), hidden ? 2 : i + 1);
+}
+function toggleBlind(){ $("eye").click(); say(S.blind ? "目を閉じるモード" : "表示に戻しました"); }
+document.addEventListener("keydown", e => {
+  if(!S.running || e.altKey || e.ctrlKey || e.metaKey) return;
+  const k = e.key;
+  if(k === "ArrowRight" || k === "ArrowUp"){ setGain(S.hidden ? S.gi : S.gi + 1, true, false); }
+  else if(k === "ArrowLeft" || k === "ArrowDown"){ setGain(S.hidden ? S.gi : S.gi - 1, true, false); }
+  else if(/^[1-5]$/.test(k)){ setGain(parseInt(k, 10) - 1, true, false); }
+  else if(k === " "){ zeroNow(); say("ゼロ"); }
+  else if(k === "Enter"){ toggleBlind(); }
+  else if(k === "r" || k === "R"){ let n; do{ n = Math.floor(Math.random() * GAINS.length); }while(GAINS.length > 1 && n === S.gi && Math.random() < 0.7); setGain(n, true, true); }
+  else if(k === "a" || k === "A"){ say("答えは、" + gainName(S.gi), S.gi + 1); setGain(S.gi, false, false); }
+  else if(k === "d" || k === "D"){ document.querySelector(`[data-dir="${-S.dir}"]`).click(); say(S.dir > 0 ? "上げると高くなる" : "上げると低くなる"); }
+  else if(k === "m" || k === "M"){ document.querySelector(`[data-snd="${S.snd === "moving" ? "always" : "moving"}"]`).click(); say(S.snd === "moving" ? "動いている間だけ" : "ずっと鳴らす"); }
+  else return;
+  e.preventDefault();
+});
 
 /* ---------- stage ---------- */
 const Y0 = 270, Y1 = 34, HX = 80, PX = 280;
@@ -387,7 +464,7 @@ function guide(){
   } else if(h >= 20){
     key = "down"; icon = "down"; title = "机の上に戻してください"; sub = "戻すと音も最初の高さに戻ります";
   } else if(h < 5 && lifts >= 2){
-    key = "compare"; icon = "slope"; title = "ゲインを変えて、もう一度持ち上げてみよう"; sub = "重さの感じ方は変わった？ 目を閉じても試してみて"; ok = true;
+    key = "compare"; icon = "slope"; title = TOUCH ? "ゲインを変えて、もう一度持ち上げてみよう" : "← → キーでゲインを変えて、もう一度持ち上げてみよう"; sub = "重さの感じ方は変わった？ 目を閉じても試してみて"; ok = true;
   } else {
     key = "up"; icon = "up"; title = "ゆっくり30 cmくらい持ち上げてみよう"; sub = "右のメーターの点線（目安）くらいまで";
   }
