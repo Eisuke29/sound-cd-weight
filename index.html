@@ -5,314 +5,472 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>音のC/D比デモ</title>
 <style>
-/* Layout: スマホ縦持ち1画面。上に読み値、真ん中に操作、下に高さと音の推移グラフ */
+/* Layout: 1画面。主役は「高さ」と「音」の2本の縦メーターをつなぐ線。下にゲイン（傾きの絵）と設定アイコン */
 :root{
-  --bg:#f2f4f7; --surface:#ffffff; --fg:#17202b; --muted:#5b6677; --line:#d6dbe3;
-  --accent:#1f6f8b; --pitch:#b3591c; --ok:#2e7d4f; --warn:#a3313b;
-  --f:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
-  --mono:ui-monospace,Menlo,Consolas,monospace;
+  --bg:#eef1f4; --surface:#ffffff; --fg:#141b24; --muted:#6a7483; --line:#d9dee5; --faint:#eef1f5;
+  --h:#1f6f8b; --p:#c2611f; --ok:#2e7d4f;
+  --f:"Hiragino Sans","Noto Sans JP","Yu Gothic UI","Yu Gothic",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#10141a; --surface:#1a2029; --fg:#e6eaf0; --muted:#9aa4b5; --line:#2e3644;
-  --accent:#5fb6d3; --pitch:#ef9a5f; --ok:#6ccb93; --warn:#f08a92; color-scheme:dark}}
+  --bg:#0e1217; --surface:#171d25; --fg:#e8ecf1; --muted:#8e98a8; --line:#2b3340; --faint:#1e252f;
+  --h:#5fb6d3; --p:#f19a5c; --ok:#6ccb93; color-scheme:dark}}
 *{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.6;
-  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-.wrap{max-width:560px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
-h1{font-size:20px;margin:0}
-p{margin:0}
-.muted{color:var(--muted);font-size:13px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.read{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.read div{display:flex;flex-direction:column}
-.read .k{font-size:12px;color:var(--muted)}
-.read .v{font-family:var(--mono);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
-#hval{color:var(--accent)} #sval{color:var(--pitch)}
-.status{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
-.dot.on{background:var(--ok)}
-.label{font-size:12.5px;color:var(--muted);font-weight:600}
-.seg{display:grid;gap:6px}
-.seg.g5{grid-template-columns:repeat(5,1fr)}
-.seg.g2{grid-template-columns:repeat(2,1fr)}
-button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:9px;padding:9px 6px;cursor:pointer;touch-action:manipulation}
-button[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg);font-weight:700}
-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button small{display:block;font-size:11px;opacity:.8;font-weight:400}
-#start{font-size:18px;padding:14px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
-.row{display:flex;gap:8px}
-.row button{flex:1}
-canvas{width:100%;height:150px;display:block;background:var(--surface);border:1px solid var(--line);border-radius:10px}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
-.legend b{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
-input[type=range]{width:100%}
-ol{margin:0;padding-left:1.2em;font-size:13.5px}
-.err{color:var(--warn);font-size:13px}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  -webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--h);outline-offset:3px;border-radius:10px}
+svg{display:block}
+.app{max-width:1000px;margin:0 auto;min-height:100%;padding-block:14px 20px;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:12px}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:10px}
+.top h1{font-size:16px;margin:0;font-weight:700;flex:1;letter-spacing:.02em}
+.modes{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.modes button{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;font-size:13px;color:var(--muted)}
+.modes button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
+.icon-btn{width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center}
+.icon-btn[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+
+/* start */
+.start{flex:1;display:grid;place-items:center;padding:40px 0}
+.start-inner{display:flex;flex-direction:column;align-items:center;gap:18px}
+.go{width:148px;height:148px;border-radius:50%;background:var(--h);color:#fff;display:grid;place-items:center;
+  box-shadow:0 0 0 10px color-mix(in srgb,var(--h) 18%,transparent)}
+.go:active{transform:scale(.97)}
+.start-hint{display:flex;gap:16px;align-items:center;color:var(--muted)}
+
+/* live */
+.live{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch}
+.live.phone{grid-template-columns:minmax(0,1fr)}
+@media (max-width:760px){.live{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;min-width:0}
+.cam{aspect-ratio:4/3}
+.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.cam video{opacity:.9}
+.stage{padding:10px 8px 6px}
+.stage svg{width:100%;height:auto;max-height:62vh}
+.big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700}
+
+/* overlay: calibration */
+.hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:color-mix(in srgb,var(--surface) 78%,transparent);font-weight:700;font-size:17px}
+.hint small{font-weight:400;color:var(--muted);font-size:13px}
+.blind{position:absolute;inset:0;background:var(--fg);color:var(--surface);display:grid;place-items:center}
+.lost{position:absolute;top:10px;left:10px;background:var(--fg);color:var(--surface);border-radius:99px;padding:4px 10px;font-size:12.5px;display:flex;gap:6px;align-items:center}
+
+/* controls */
+.controls{display:flex;flex-direction:column;gap:10px}
+.gains{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.gain{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.gain .v{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.gain[aria-pressed="true"]{border-color:var(--fg);box-shadow:inset 0 0 0 1.5px var(--fg)}
+.gain[aria-pressed="true"] .v{color:var(--fg);font-weight:700}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.pair{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.pair button{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:9px;font-size:13px;color:var(--muted)}
+.pair button[aria-pressed="true"]{background:var(--faint);color:var(--fg);font-weight:700}
+.spacer{flex:1}
+.zero{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:700}
+.err{background:var(--surface);border:1px solid var(--p);color:var(--p);border-radius:12px;padding:10px 12px;font-size:13.5px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>音のC/D比デモ</h1>
-  <p class="muted">スマホを机から持ち上げると、高さに合わせて音の高さが変わります。ゲイン（1 cmあたり何半音変わるか）を変えて、重さの感じ方が変わるか試すためのプロトタイプです。</p>
+<div class="app">
 
-  <button type="button" id="start">スタート（センサーと音を有効にする）</button>
-  <p class="err" id="err" hidden></p>
-
-  <div class="card">
-    <div class="status"><span class="dot" id="sdot"></span><span id="stext">まだ始まっていません</span></div>
-    <div class="read">
-      <div><span class="k">高さ</span><span class="v" id="hval">0.0<small style="font-size:14px"> cm</small></span></div>
-      <div><span class="k">音（最初の音から）</span><span class="v" id="sval">+0.0<small style="font-size:14px"> 半音</small></span></div>
+  <div class="top">
+    <h1>音のC/D比</h1>
+    <div class="modes" role="group" aria-label="測り方">
+      <button type="button" id="m-cam" aria-pressed="true" title="Webカメラで手を追う">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>カメラ</button>
+      <button type="button" id="m-phone" aria-pressed="false" title="スマホのセンサー">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>スマホ</button>
     </div>
-    <p class="muted" id="fval">440 Hz・停止中</p>
+    <button type="button" class="icon-btn" id="eye" aria-pressed="false" aria-label="目を閉じる" title="目を閉じる（画面を隠す）">
+      <svg id="eye-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <svg id="eye-closed" hidden width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
+    </button>
   </div>
 
-  <div class="card">
-    <span class="label">ゲイン（1 cmあたりの半音）</span>
-    <div class="seg g5" role="group" aria-label="ゲイン">
-      <button type="button" data-gain="0.05">0.05<small>小</small></button>
-      <button type="button" data-gain="0.1">0.1<small></small></button>
-      <button type="button" data-gain="0.2" aria-pressed="true">0.2<small>標準</small></button>
-      <button type="button" data-gain="0.4">0.4<small></small></button>
-      <button type="button" data-gain="0.8">0.8<small>大</small></button>
+  <!-- start -->
+  <section class="start" id="start">
+    <div class="start-inner">
+      <button type="button" class="go" id="go" aria-label="はじめる">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="start-hint" id="start-hint" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 14v-2a2 2 0 0 1 4 0v2"/><path d="M3 14a9 9 0 0 0 18 0V9a2 2 0 0 0-4 0"/><path d="M7 12V5a2 2 0 0 1 4 0v6"/><path d="M11 11V4a2 2 0 0 1 4 0v7"/><path d="M15 11V6a2 2 0 0 1 4 0v5"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
     </div>
-    <p class="muted" id="gainnote">30 cm持ち上げると +6半音</p>
+  </section>
 
-    <span class="label">向き</span>
-    <div class="seg g2" role="group" aria-label="向き">
-      <button type="button" data-dir="1" aria-pressed="true">上げると音が上がる</button>
-      <button type="button" data-dir="-1">上げると音が下がる</button>
+  <!-- live -->
+  <section class="live" id="live" hidden>
+    <div class="panel cam" id="campanel">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="lost" id="lost" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 8v5M12 16v.5"/><circle cx="12" cy="12" r="10"/></svg>手が見えない</div>
     </div>
 
-    <span class="label">鳴らし方</span>
-    <div class="seg g2" role="group" aria-label="鳴らし方">
-      <button type="button" data-mode="moving" aria-pressed="true">動いている間だけ</button>
-      <button type="button" data-mode="always">ずっと鳴らす</button>
+    <div class="panel stage" id="stagepanel">
+      <svg id="stage" viewBox="0 0 360 330" role="img" aria-label="高さと音のメーター">
+        <!-- columns -->
+        <rect x="58" y="30" width="44" height="240" rx="22" fill="var(--faint)"/>
+        <rect x="258" y="30" width="44" height="240" rx="22" fill="var(--faint)"/>
+        <g id="hticks"></g><g id="pticks"></g>
+        <!-- target guide -->
+        <line x1="50" x2="110" y1="90" y2="90" stroke="var(--h)" stroke-width="2.5" stroke-dasharray="5 5" opacity=".7"/>
+        <g id="guide" opacity="0">
+          <rect id="guidebg" x="130" y="4" width="100" height="30" rx="15" fill="var(--fg)"/>
+          <text id="guidetext" x="180" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="var(--surface)"></text>
+        </g>
+        <!-- fill -->
+        <rect id="hfill" x="58" y="270" width="44" height="0" rx="22" fill="var(--h)" opacity=".18"/>
+        <rect id="pfill" x="258" y="270" width="44" height="0" rx="22" fill="var(--p)" opacity=".18"/>
+        <!-- link line -->
+        <line id="link" x1="102" y1="270" x2="258" y2="270" stroke="var(--fg)" stroke-width="2.5" stroke-dasharray="1 0" opacity=".55"/>
+        <!-- markers -->
+        <g id="hmark" transform="translate(80,270)">
+          <rect x="-24" y="-18" width="48" height="36" rx="7" fill="var(--h)"/>
+          <path d="M-12 -2h24" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+        </g>
+        <g id="pmark" transform="translate(280,270)">
+          <circle r="21" fill="var(--p)"/>
+          <path d="M-3 7V-9l9 -2" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="-6.5" cy="7.5" r="4" fill="#fff"/>
+        </g>
+        <!-- labels -->
+        <text x="80" y="300" text-anchor="middle" class="big" style="font-size:26px;fill:var(--h)" id="hval">0</text>
+        <text x="80" y="320" text-anchor="middle" style="font-size:12px;fill:var(--muted)">cm</text>
+        <text x="280" y="300" text-anchor="middle" class="big" style="font-size:26px;fill:var(--p)" id="pval">0</text>
+        <text x="280" y="320" text-anchor="middle" style="font-size:12px;fill:var(--muted)">半音</text>
+        <g id="speaker" transform="translate(180,300)" opacity=".25">
+          <path d="M-12 -5h5l7-6v22l-7-6h-5z" fill="var(--fg)"/>
+          <path d="M5 -4a6 6 0 0 1 0 12M9 -8a11 11 0 0 1 0 20" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linecap="round"/>
+        </g>
+      </svg>
+      <div class="hint" id="hint" hidden>
+        <svg id="ring" width="96" height="96" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="8"/>
+          <circle id="ringfill" cx="50" cy="50" r="42" fill="none" stroke="var(--ok)" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
+          <g id="ringhand" transform="translate(50,52)" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round">
+            <path d="M-20 10h40"/><path d="M-6 6v-14a3 3 0 0 1 6 0v10M0 2v-16a3 3 0 0 1 6 0v16M6 2v-12a3 3 0 0 1 6 0v12"/>
+          </g>
+          <g id="ringphone" transform="translate(50,52)" fill="none" stroke="var(--fg)" stroke-width="3" stroke-linecap="round" hidden>
+            <path d="M-22 10h44"/><rect x="-16" y="1" width="32" height="7" rx="2"/>
+          </g>
+        </svg>
+        <span id="hinttext">手を机に置いて止める</span>
+      </div>
+      <div class="blind" id="blind" hidden>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
+      </div>
     </div>
+  </section>
 
-    <div class="row">
-      <button type="button" id="zero">今の高さを0にする</button>
-      <button type="button" id="mute" aria-pressed="false">音を止める</button>
+  <div class="err" id="err" hidden></div>
+
+  <section class="controls" id="controls" hidden>
+    <div class="gains" role="group" aria-label="ゲイン（1 cmあたりの半音）" id="gains"></div>
+    <div class="opts">
+      <div class="pair" role="group" aria-label="向き">
+        <button type="button" data-dir="1" aria-pressed="true" title="上げると音が上がる">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 20V4M6 10l6-6 6 6"/></svg>上がる</button>
+        <button type="button" data-dir="-1" aria-pressed="false" title="上げると音が下がる">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>下がる</button>
+      </div>
+      <div class="pair" role="group" aria-label="鳴らし方">
+        <button type="button" data-snd="moving" aria-pressed="true" title="動いている間だけ鳴る">
+          <svg width="26" height="20" viewBox="0 0 30 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 10h4M10 10h4M18 10h4M26 10h2"/></svg>動く間</button>
+        <button type="button" data-snd="always" aria-pressed="false" title="ずっと鳴る">
+          <svg width="26" height="20" viewBox="0 0 30 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 10h26"/></svg>ずっと</button>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" class="zero" id="zero" title="今の高さを0にする">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 20h18"/><path d="M12 16V5M8 9l4-4 4 4"/></svg>0</button>
     </div>
-  </div>
-
-  <div class="card">
-    <span class="label">直近6秒の推移</span>
-    <canvas id="cv" width="1040" height="300" aria-label="高さと音の推移グラフ"></canvas>
-    <div class="legend"><span><b style="background:var(--accent)"></b>高さ（0〜50 cm）</span><span><b style="background:var(--pitch)"></b>音（±24半音）</span></div>
-  </div>
-
-  <div class="card">
-    <span class="label">PCで試す（シミュレーション）</span>
-    <p class="muted">センサーがない端末では、スライダーで高さを動かせます。動かすとスマホと同じように音が変わります。</p>
-    <input type="range" id="sim" min="0" max="50" step="0.1" value="0" aria-label="シミュレーションの高さ（cm）">
-  </div>
-
-  <div class="card">
-    <span class="label">使い方</span>
-    <ol>
-      <li>スマホを画面を上にして机に置き、「スタート」を押す（iPhoneは動きの許可を求められます）</li>
-      <li>有線イヤホンがおすすめ（Bluetoothは音が遅れます）。iPhoneはマナーモードを解除</li>
-      <li>1〜2秒かけて20〜30 cm持ち上げ、止めて、机に戻す</li>
-      <li>机に置いてじっとさせると高さが0に戻ります。ずれたら「今の高さを0にする」</li>
-      <li>ゲインを変えて同じように持ち上げ、重さの感じ方を比べる。目を閉じても試す</li>
-    </ol>
-    <p class="muted">高さは加速度センサーから推定しているので、数cmの誤差があります。プロトタイプなので誇張した値を使っています。</p>
-  </div>
-  <p class="muted" id="dbg"></p>
+  </section>
 </div>
 
-<script>
-(function(){
-  "use strict";
-  var BASE = 440;           // 最初の音（Hz）
-  var MAX_H = 0.8;          // m
-  var state = {gain:0.2, dir:1, mode:"moving", muted:false, running:false, sim:false};
-  var h = 0, v = 0, aUpLast = 0, lastT = null, gLP = null, win = [], moving = false, gateUntil = 0;
-  var hist = [];
-  var $ = function(id){return document.getElementById(id);};
+<script type="module">
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const BASE = 440, MAXCM = 40, MAXST = 24;
+const GAINS = [0.05, 0.1, 0.2, 0.4, 0.8];
+const S = { mode: matchMedia("(pointer:coarse)").matches ? "phone" : "cam", gain: 0.2, dir: 1, snd: "moving", blind: false, running: false };
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
 
-  // ---------- Audio ----------
-  var ctx = null, osc = null, amp = null;
-  function initAudio(){
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) throw new Error("このブラウザでは音を出せません");
-    if(!ctx){
-      ctx = new AC();
-      osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = BASE;
-      amp = ctx.createGain(); amp.gain.value = 0;
-      osc.connect(amp); amp.connect(ctx.destination); osc.start();
+let h = 0;            // cm
+let moving = false, gateUntil = 0, zeroed = false;
+
+/* ---------- gain buttons with slope icons ---------- */
+GAINS.forEach(g => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "gain"; b.dataset.g = g;
+  b.setAttribute("aria-pressed", g === S.gain ? "true" : "false");
+  b.setAttribute("aria-label", g + " 半音/cm");
+  const rise = Math.min(30, g * 37.5); // 0.8 -> 30
+  b.innerHTML = `<svg width="56" height="40" viewBox="0 0 56 40"><path d="M6 34H50" stroke="var(--line)" stroke-width="2"/>
+    <path d="M6 34L50 ${34 - rise}" stroke="var(--p)" stroke-width="3.2" stroke-linecap="round"/></svg><span class="v">${g}</span>`;
+  b.addEventListener("click", () => { S.gain = g; document.querySelectorAll(".gain").forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false")); });
+  $("gains").appendChild(b);
+});
+function bindPair(attr, key, parse){
+  const btns = document.querySelectorAll(`[data-${attr}]`);
+  btns.forEach(b => b.addEventListener("click", () => {
+    S[key] = parse(b.dataset[attr]);
+    btns.forEach(o => o.setAttribute("aria-pressed", o === b ? "true" : "false"));
+    drawTicks();
+  }));
+}
+bindPair("dir", "dir", x => parseInt(x, 10));
+bindPair("snd", "snd", x => x);
+
+/* ---------- mode switch ---------- */
+function setMode(m){
+  S.mode = m;
+  $("m-cam").setAttribute("aria-pressed", m === "cam" ? "true" : "false");
+  $("m-phone").setAttribute("aria-pressed", m === "phone" ? "true" : "false");
+  if(S.running){ stopAll(); begin(); }
+}
+$("m-cam").onclick = () => setMode("cam");
+$("m-phone").onclick = () => setMode("phone");
+setMode(S.mode);
+
+$("eye").onclick = () => {
+  S.blind = !S.blind;
+  $("eye").setAttribute("aria-pressed", S.blind ? "true" : "false");
+  $("eye-open").hidden = S.blind; $("eye-closed").hidden = !S.blind;
+  $("blind").hidden = !S.blind;
+};
+
+/* ---------- stage drawing ---------- */
+const Y0 = 270, Y1 = 30, HX = 80, PX = 280;
+const yH = cm => Y0 - (Math.max(0, Math.min(MAXCM, cm)) / MAXCM) * (Y0 - Y1);
+function yP(st){ // base at bottom (up) or top (down)
+  const m = Math.min(MAXST, Math.abs(st)) / MAXST * (Y0 - Y1);
+  return S.dir > 0 ? Y0 - m : Y1 + m;
+}
+function drawTicks(){
+  const ht = $("hticks"), pt = $("pticks"); ht.innerHTML = ""; pt.innerHTML = "";
+  for(let c = 0; c <= MAXCM; c += 10){
+    const y = yH(c);
+    ht.insertAdjacentHTML("beforeend", `<line x1="44" x2="54" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="2"/><text x="38" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${c}</text>`);
+  }
+  for(let s = 0; s <= MAXST; s += 6){
+    const y = yP(S.dir * s);
+    const lab = s === 0 ? "♪" : (S.dir > 0 ? "+" : "−") + s;
+    pt.insertAdjacentHTML("beforeend", `<line x1="306" x2="316" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="2"/><text x="322" y="${y+4}" font-size="11" fill="var(--muted)">${lab}</text>`);
+  }
+}
+drawTicks();
+function render(st, on){
+  const hy = yH(h), py = yP(st);
+  $("hmark").setAttribute("transform", `translate(${HX},${hy})`);
+  $("pmark").setAttribute("transform", `translate(${PX},${py})`);
+  $("link").setAttribute("y1", hy); $("link").setAttribute("y2", py);
+  $("hfill").setAttribute("y", hy); $("hfill").setAttribute("height", Y0 - hy + 0.01);
+  if(S.dir > 0){ $("pfill").setAttribute("y", py); $("pfill").setAttribute("height", Y0 - py + 0.01); }
+  else { $("pfill").setAttribute("y", Y1); $("pfill").setAttribute("height", py - Y1 + 0.01); }
+  $("hval").textContent = Math.round(h);
+  $("pval").textContent = (st > 0.05 ? "+" : st < -0.05 ? "−" : "") + Math.abs(st).toFixed(1);
+  $("speaker").setAttribute("opacity", on ? "1" : ".25");
+  // 次にやることを短く出す
+  let g = "";
+  if(zeroed && !moving){ if(h < 5) g = "↑ 上げる"; else if(h >= 22) g = "↓ 下ろす"; }
+  $("guidetext").textContent = g;
+  $("guide").setAttribute("opacity", g ? "1" : "0");
+  $("pmark").setAttribute("opacity", on ? "1" : ".45");
+}
+
+/* ---------- audio ---------- */
+let ctx = null, osc = null, amp = null;
+function initAudio(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!ctx){
+    ctx = new AC();
+    osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = BASE;
+    amp = ctx.createGain(); amp.gain.value = 0;
+    osc.connect(amp).connect(ctx.destination); osc.start();
+  }
+  if(ctx.state === "suspended") ctx.resume();
+}
+function tick(){
+  const now = performance.now();
+  const st = Math.max(-MAXST * 1.5, Math.min(MAXST * 1.5, S.dir * S.gain * h));
+  const on = S.running && zeroed && (S.snd === "always" || moving || now < gateUntil);
+  if(ctx){
+    const t = ctx.currentTime;
+    osc.frequency.setTargetAtTime(BASE * Math.pow(2, st / 12), t, 0.012);
+    amp.gain.setTargetAtTime(on ? 0.2 : 0, t, on ? 0.02 : 0.07);
+  }
+  render(st, on);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------- calibration ring ---------- */
+function showHint(text){
+  $("hint").hidden = false; $("hinttext").textContent = text;
+  $("ringhand").toggleAttribute("hidden", S.mode !== "cam");
+  $("ringphone").toggleAttribute("hidden", S.mode === "cam");
+}
+function ring(p){ $("ringfill").setAttribute("stroke-dashoffset", String(264 * (1 - Math.max(0, Math.min(1, p))))); }
+function hideHint(){ $("hint").hidden = true; ring(0); }
+$("zero").onclick = () => { zeroNow(); };
+let zeroNow = () => {};
+
+function showErr(msg){ $("err").textContent = msg; $("err").hidden = false; }
+
+/* ---------- camera mode ---------- */
+let stream = null, landmarker = null, camRaf = 0, camState = null;
+async function startCam(){
+  $("campanel").hidden = false; $("live").classList.remove("phone");
+  showHint("読み込み中");
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" }, audio: false });
+  }catch(e){ showErr("カメラを使えませんでした。ブラウザのカメラ許可を確認してください。"); hideHint(); return; }
+  const video = $("video"); video.srcObject = stream; await video.play();
+  if(!landmarker){
+    try{
+      const vision = await import(MP + "/vision_bundle.mjs");
+      const fs = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
+      const opts = d => ({ baseOptions: { modelAssetPath: MODEL, delegate: d }, runningMode: "VIDEO", numHands: 1 });
+      try{ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("GPU")); }
+      catch(_){ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("CPU")); }
+    }catch(e){ showErr("手の検出を読み込めませんでした。通信状況を確認して開き直してください。"); hideHint(); return; }
+  }
+  camState = { y0: null, cmPerPx: null, ySm: null, hist: [], lastSeen: 0, lastVT: -1, prevH: 0, prevT: 0 };
+  zeroed = false; showHint("手を机に置いて止める");
+  zeroNow = () => { if(camState && camState.ySm != null && camState.palm){ camState.y0 = camState.ySm; camState.cmPerPx = 9.5 / camState.palm; zeroed = true; h = 0; hideHint(); } };
+  camLoop();
+}
+function camLoop(){
+  const video = $("video"), cv = $("overlay"), c = cv.getContext("2d");
+  const step = () => {
+    if(!stream) return;
+    const W = video.videoWidth, H = video.videoHeight;
+    if(W && video.currentTime !== camState.lastVT){
+      camState.lastVT = video.currentTime;
+      if(cv.width !== W){ cv.width = W; cv.height = H; }
+      const now = performance.now();
+      const res = landmarker.detectForVideo(video, now);
+      c.clearRect(0, 0, W, H);
+      const lm = res.landmarks && res.landmarks[0];
+      if(lm){
+        camState.lastSeen = now;
+        const ids = [0, 5, 9, 13, 17];
+        let cx = 0, cy = 0; ids.forEach(i => { cx += lm[i].x; cy += lm[i].y; }); cx = cx / 5 * W; cy = cy / 5 * H;
+        const palm = Math.hypot((lm[0].x - lm[9].x) * W, (lm[0].y - lm[9].y) * H);
+        camState.ySm = camState.ySm == null ? cy : camState.ySm + 0.55 * (cy - camState.ySm);
+        camState.palm = camState.palm ? camState.palm + 0.1 * (palm - camState.palm) : palm;
+        // stillness for auto zero
+        camState.hist.push({ t: now, y: camState.ySm });
+        while(camState.hist.length && now - camState.hist[0].t > 1000) camState.hist.shift();
+        if(!zeroed){
+          const ys = camState.hist.map(p => p.y), span = Math.max(...ys) - Math.min(...ys);
+          const dur = now - camState.hist[0].t;
+          const still = span < camState.palm * 0.06;
+          if(!still) camState.hist = camState.hist.slice(-1);
+          ring(still ? dur / 1000 : 0);
+          if(still && dur > 950) zeroNow();
+        }
+        if(zeroed){
+          h = Math.max(0, (camState.y0 - camState.ySm) * camState.cmPerPx);
+          const dt = (now - camState.prevT) / 1000;
+          if(dt > 0){ const sp = Math.abs(h - camState.prevH) / dt; moving = sp > 4; if(moving) gateUntil = now + 180; }
+          camState.prevH = h; camState.prevT = now;
+        }
+        // overlay
+        c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--h");
+        c.beginPath(); c.arc(cx, cy, 14, 0, Math.PI * 2); c.fill();
+        if(zeroed){
+          c.strokeStyle = c.fillStyle; c.lineWidth = 4; c.setLineDash([12, 10]);
+          c.beginPath(); c.moveTo(0, camState.y0); c.lineTo(W, camState.y0); c.stroke(); c.setLineDash([]);
+        }
+      }
+      $("lost").hidden = now - camState.lastSeen < 400 || !zeroed;
+      if(now - camState.lastSeen > 400){ moving = false; }
     }
-    if(ctx.state === "suspended") ctx.resume();
-  }
-  function semitones(){ return state.dir * state.gain * h * 100; }
-  function updateAudio(now){
-    var st = Math.max(-36, Math.min(36, semitones()));
-    var f = BASE * Math.pow(2, st/12);
-    var on;
-    if(state.mode === "always") on = true;
-    else on = moving || now < gateUntil;
-    if(state.muted || !state.running) on = false;
-    if(ctx){
-      var t = ctx.currentTime;
-      osc.frequency.setTargetAtTime(f, t, 0.012);
-      amp.gain.setTargetAtTime(on ? 0.18 : 0, t, on ? 0.02 : 0.06);
+    camRaf = requestAnimationFrame(step);
+  };
+  step();
+}
+
+/* ---------- phone mode ---------- */
+let ph = null;
+function startPhone(){
+  $("campanel").hidden = true; $("live").classList.add("phone");
+  zeroed = false; h = 0; showHint("机に置いて止める");
+  ph = { v: 0, lastT: null, g: null, win: [], segStart: 0, wasStill: true, stillSince: 0 };
+  zeroNow = () => { h = 0; if(ph) ph.v = 0; zeroed = true; hideHint(); };
+  const DME = window.DeviceMotionEvent;
+  if(!DME){ showErr("このブラウザでは動きのセンサーが使えません。カメラに切り替えてください。"); return; }
+  const attach = () => window.addEventListener("devicemotion", onMotion);
+  if(typeof DME.requestPermission === "function"){
+    DME.requestPermission().then(r => r === "granted" ? attach() : showErr("動きのセンサーが許可されませんでした。")).catch(() => showErr("動きのセンサーの許可に失敗しました。"));
+  } else attach();
+}
+function onMotion(e){
+  const aig = e.accelerationIncludingGravity; if(!aig || aig.x == null || !ph) return;
+  const now = performance.now(), g = [aig.x, aig.y, aig.z];
+  if(ph.lastT === null){ ph.lastT = now; ph.g = g.slice(); return; }
+  const dt = (now - ph.lastT) / 1000; ph.lastT = now; if(dt <= 0 || dt > 0.1) return;
+  const k = 1 - Math.exp(-dt / 0.6); for(let i = 0; i < 3; i++) ph.g[i] += k * (g[i] - ph.g[i]);
+  const gm = Math.hypot(...ph.g) || 9.81, u = ph.g.map(x => x / gm);
+  const acc = e.acceleration;
+  const aUp = (acc && acc.x != null) ? acc.x * u[0] + acc.y * u[1] + acc.z * u[2] : g[0] * u[0] + g[1] * u[1] + g[2] * u[2] - gm;
+  ph.win.push({ t: now, a: Math.abs(aUp) }); while(ph.win.length && now - ph.win[0].t > 250) ph.win.shift();
+  const still = Math.max(...ph.win.map(w => w.a)) < 0.2;
+  if(still){
+    if(!ph.wasStill){
+      // 動きが終わった瞬間：下へ動いて止まったなら机に戻ったとみなして0
+      if(h - ph.segStart < -3) h = 0;
+      ph.stillSince = now;
     }
-    return {st:st, f:f, on:on};
+    ph.v = 0;
+    if(!zeroed){ ring((now - ph.stillSince) / 700); if(now - ph.stillSince > 700) zeroNow(); }
+  } else {
+    if(ph.wasStill) ph.segStart = h;
+    const a = Math.abs(aUp) < 0.05 ? 0 : aUp;
+    ph.v += a * dt; ph.v *= (1 - 0.3 * dt);
+    h += ph.v * dt * 100;
+    if(h < 0){ h = 0; if(ph.v < 0) ph.v = 0; }
+    if(h > 80) h = 80;
+    if(!zeroed){ ph.stillSince = now; ring(0); }
   }
+  ph.wasStill = still;
+  moving = !still && Math.abs(ph.v) > 0.03;
+  if(moving) gateUntil = now + 150;
+}
 
-  // ---------- Motion -> height ----------
-  function onMotion(e){
-    if(state.sim) return;
-    var aig = e.accelerationIncludingGravity;
-    if(!aig || aig.x == null) return;
-    var now = performance.now();
-    var g = [aig.x, aig.y, aig.z];
-    if(lastT === null){ lastT = now; gLP = g.slice(); return; }
-    var dt = (now - lastT) / 1000; lastT = now;
-    if(dt <= 0 || dt > 0.1){ return; }
-    var k = 1 - Math.exp(-dt / 0.6);
-    for(var i=0;i<3;i++) gLP[i] += k * (g[i] - gLP[i]);
-    var gm = Math.hypot(gLP[0], gLP[1], gLP[2]) || 9.81;
-    var u = [gLP[0]/gm, gLP[1]/gm, gLP[2]/gm];
-    var acc = e.acceleration, aUp;
-    if(acc && acc.x != null){
-      aUp = acc.x*u[0] + acc.y*u[1] + acc.z*u[2];
-    } else {
-      aUp = g[0]*u[0] + g[1]*u[1] + g[2]*u[2] - gm;
-    }
-    aUpLast = aUp;
-    var rr = e.rotationRate, rot = null;
-    if(rr && rr.alpha != null) rot = Math.hypot(rr.alpha, rr.beta, rr.gamma);
-
-    var a = Math.abs(aUp) < 0.06 ? 0 : aUp;
-    v += a * dt;
-    v *= (1 - 0.4 * dt);            // ゆるい減衰でドリフトを抑える
-    h += v * dt;
-
-    win.push({t:now, a:Math.abs(aUp), r:rot});
-    while(win.length && now - win[0].t > 700) win.shift();
-    var maxShort = 0, maxLong = 0, maxRot = 0, span = win.length ? now - win[0].t : 0;
-    for(var j=0;j<win.length;j++){
-      var w = win[j];
-      if(now - w.t < 200) maxShort = Math.max(maxShort, w.a);
-      maxLong = Math.max(maxLong, w.a);
-      if(w.r != null) maxRot = Math.max(maxRot, w.r);
-    }
-    // 止まったら速さを0に（ZUPT）
-    if(maxShort < 0.18) v = 0;
-    // 机の上でじっとしたら高さを0に
-    var still = span > 550 && maxLong < 0.1;
-    if(still && (rot != null ? maxRot < 1.5 : h < 0.1)){ h = 0; v = 0; }
-
-    if(h < 0){ h = 0; if(v < 0) v = 0; }
-    if(h > MAX_H){ h = MAX_H; if(v > 0) v = 0; }
-    moving = Math.abs(v) > 0.04 || Math.abs(a) > 0.5;
-    if(moving) gateUntil = now + 150;
-  }
-
-  // ---------- Simulation ----------
-  var simPrev = null;
-  $("sim").addEventListener("input", function(){
-    if(!state.running){ startCommon(true); }
-    state.sim = true;
-    var now = performance.now();
-    var nh = parseFloat(this.value) / 100;
-    if(simPrev){ var dt = (now - simPrev.t)/1000; if(dt > 0) v = (nh - simPrev.h)/dt; }
-    simPrev = {t:now, h:nh};
-    h = nh; moving = Math.abs(v) > 0.03; if(moving) gateUntil = now + 250;
-    $("stext").textContent = "シミュレーション中（スライダー）";
-  });
-
-  // ---------- Start ----------
-  function showErr(msg){ var el = $("err"); el.textContent = msg; el.hidden = false; }
-  function startCommon(simOnly){
-    try{ initAudio(); }catch(err){ showErr(err.message); }
-    state.running = true;
-    $("sdot").classList.add("on");
-    $("start").textContent = "動作中";
-    if(simOnly) $("stext").textContent = "シミュレーション中（スライダー）";
-  }
-  $("start").addEventListener("click", function(){
-    startCommon(false);
-    var DME = window.DeviceMotionEvent;
-    if(!DME){ $("stext").textContent = "動きのセンサーがありません。下のスライダーで試せます"; return; }
-    var attach = function(){
-      window.addEventListener("devicemotion", onMotion);
-      state.sim = false;
-      $("stext").textContent = "センサー動作中。机に置いてじっとさせると0に戻ります";
-      setTimeout(function(){ if(lastT === null) $("stext").textContent = "センサーの値が来ません。PCならスライダーで試してください"; }, 1500);
-    };
-    if(typeof DME.requestPermission === "function"){
-      DME.requestPermission().then(function(res){
-        if(res === "granted") attach();
-        else showErr("動きのセンサーが許可されませんでした。設定から許可するか、ページを開き直してください。");
-      }).catch(function(err){ showErr("センサーの許可に失敗しました：" + err.message); });
-    } else attach();
-  });
-
-  // ---------- Controls ----------
-  function bindSeg(attr, key, parse){
-    var btns = document.querySelectorAll("[data-" + attr + "]");
-    btns.forEach(function(b){
-      b.addEventListener("click", function(){
-        btns.forEach(function(o){ o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
-        state[key] = parse(b.getAttribute("data-" + attr));
-        updateGainNote();
-      });
-    });
-  }
-  bindSeg("gain", "gain", parseFloat);
-  bindSeg("dir", "dir", function(x){ return parseInt(x, 10); });
-  bindSeg("mode", "mode", function(x){ return x; });
-  function updateGainNote(){
-    var s = state.dir * state.gain * 30;
-    $("gainnote").textContent = "30 cm持ち上げると " + (s >= 0 ? "+" : "") + s.toFixed(1) + "半音";
-  }
-  $("zero").addEventListener("click", function(){ h = 0; v = 0; $("sim").value = 0; });
-  $("mute").addEventListener("click", function(){
-    state.muted = !state.muted;
-    this.setAttribute("aria-pressed", state.muted ? "true" : "false");
-    this.textContent = state.muted ? "音を出す" : "音を止める";
-  });
-
-  // ---------- Render ----------
-  var cv = $("cv"), cx = cv.getContext("2d");
-  function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-  function draw(now){
-    var W = cv.width, H = cv.height;
-    cx.clearRect(0,0,W,H);
-    cx.strokeStyle = css("--line"); cx.lineWidth = 2;
-    cx.beginPath(); cx.moveTo(0,H/2); cx.lineTo(W,H/2); cx.stroke();
-    var t0 = now - 6000;
-    function line(color, fn){
-      cx.strokeStyle = color; cx.lineWidth = 5; cx.beginPath();
-      var first = true;
-      hist.forEach(function(p){
-        var x = (p.t - t0) / 6000 * W, y = fn(p);
-        if(first){ cx.moveTo(x,y); first = false; } else cx.lineTo(x,y);
-      });
-      cx.stroke();
-    }
-    line(css("--accent"), function(p){ return H - 10 - (p.h*100/50) * (H-20); });
-    line(css("--pitch"), function(p){ return H/2 - (p.st/24) * (H/2 - 10); });
-  }
-  function loop(){
-    var now = performance.now();
-    var a = updateAudio(now);
-    $("hval").firstChild.nodeValue = (h*100).toFixed(1);
-    $("sval").firstChild.nodeValue = (a.st >= 0 ? "+" : "") + a.st.toFixed(1);
-    $("fval").textContent = Math.round(a.f) + " Hz・" + (a.on ? "鳴っている" : "停止中") + (moving ? "・動いている" : "");
-    hist.push({t:now, h:h, st:a.st});
-    while(hist.length && now - hist[0].t > 6000) hist.shift();
-    draw(now);
-    $("dbg").textContent = state.running && !state.sim ? "縦の加速度 " + aUpLast.toFixed(2) + " m/s²・速さ " + v.toFixed(2) + " m/s" : "";
-    requestAnimationFrame(loop);
-  }
-  updateGainNote();
-  requestAnimationFrame(loop);
-})();
+/* ---------- start / stop ---------- */
+function stopAll(){
+  if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  cancelAnimationFrame(camRaf);
+  window.removeEventListener("devicemotion", onMotion); ph = null;
+  zeroed = false; h = 0; moving = false; $("err").hidden = true;
+}
+function begin(){
+  $("err").hidden = true;
+  if(S.mode === "cam") startCam(); else startPhone();
+}
+$("go").onclick = () => {
+  try{ initAudio(); }catch(e){ showErr("このブラウザでは音を出せません。"); }
+  S.running = true;
+  $("start").hidden = true; $("live").hidden = false; $("controls").hidden = false;
+  begin();
+};
 </script>
 </body>
 </html>
