@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>音で重さは変わる？｜音のC/D比デモ</title>
+<title>音のC/D比デモ</title>
 <style>
-/* Layout: はじめの画面（3ステップの絵＋方法カード）→ 体験画面（ステップバー・指示バナー・カメラ｜メーター・操作カード） */
+/* Layout: 上バー（タイトル・測り方・見本・開始）→ 固定高さの指示バー → 本体（カメラ｜メーター｜操作）。PCは1画面に収める */
 :root{
   --bg:#f1f4f7; --surface:#ffffff; --fg:#141b24; --muted:#5f6a7a; --line:#d9dee6; --faint:#f3f5f8;
   --h:#1f6f8b; --h-soft:#e3f0f5; --p:#c2611f; --p-soft:#fbeee4; --ok:#2e7d4f; --ok-soft:#e5f3eb;
@@ -17,249 +17,128 @@
   --h:#5fb6d3; --h-soft:#15303a; --p:#f19a5c; --p-soft:#3a2617; --ok:#6ccb93; --ok-soft:#163323; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:15px;line-height:1.65;
-  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation;text-align:inherit}
-button:focus-visible{outline:2px solid var(--h);outline-offset:3px;border-radius:10px}
+body{background:var(--bg);color:var(--fg);font-family:var(--f);font-size:14px;line-height:1.5}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--h);outline-offset:2px;border-radius:8px}
 svg{display:block}
-h1,h2,h3,p{margin:0}
-.app{max-width:1040px;margin:0 auto;padding-block:18px 28px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  display:flex;flex-direction:column;gap:16px}
-.muted{color:var(--muted)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;min-width:0}
+h1{margin:0}
 [hidden]{display:none!important}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-/* ===== start ===== */
-.hero{display:flex;flex-direction:column;gap:6px;padding-top:6px}
-.eyebrow{font-size:12.5px;font-weight:700;color:var(--h);letter-spacing:.06em}
-.hero h1{font-size:clamp(26px,5.5vw,36px);line-height:1.3}
-.hero p{font-size:16px;color:var(--muted);max-width:40em}
-.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:640px){.steps3{grid-template-columns:1fr}}
-.s3{padding:14px;display:flex;gap:12px;align-items:center}
-.s3 .num{flex:none;width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--surface);display:grid;place-items:center;font-weight:700;font-size:14px}
-.s3 b{display:block;font-size:15px}
-.s3 span{font-size:13px;color:var(--muted)}
-.s3 svg{flex:none;margin-left:auto}
-.h2{font-size:18px;font-weight:700;margin-top:6px}
-.methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-@media (max-width:640px){.methods{grid-template-columns:1fr}}
-.method{padding:16px;display:flex;flex-direction:column;gap:10px}
-.method .ill{background:var(--faint);border-radius:12px;display:grid;place-items:center;padding:10px}
-.method h3{font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.badge{font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px}
-.badge.good{background:var(--ok-soft);color:var(--ok)}
-.badge.meh{background:var(--p-soft);color:var(--p)}
-.method p{font-size:14px;color:var(--muted)}
-.method .btn{margin-top:auto}
-.method ul{margin:0;padding-left:1.2em;font-size:13.5px;color:var(--muted)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px}
-.btn.primary{background:var(--h);color:#fff}
-.btn.ghost{border:1px solid var(--line);background:var(--surface)}
-.btn:active{transform:scale(.98)}
-.tips{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;font-size:13.5px;color:var(--muted)}
-.tips svg{flex:none;margin-top:2px}
+.app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 40px minmax(0,1fr);gap:10px;
+  padding:max(10px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;min-width:0;min-height:0}
 
-/* ===== live ===== */
-.topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.back{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--muted);padding:6px 4px}
-.stepbar{display:flex;gap:6px;flex:1 1 360px;min-width:0}
-.st .sm{display:none}
-@media (max-width:640px){.st .lg{display:none}.st .sm{display:inline}.st{padding:6px 8px;gap:6px}}
-.st{flex:1;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--muted);min-width:0}
-.st i{font-style:normal;flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700}
-.st span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.st.now{border-color:var(--fg);color:var(--fg);font-weight:700}
-.st.now i{background:var(--fg);color:var(--surface);border-color:var(--fg)}
-.st.done{color:var(--ok)}
-.st.done i{background:var(--ok);border-color:var(--ok);color:#fff}
-.banner{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--fg);color:var(--surface)}
-.banner .ico{flex:none;width:46px;height:46px;position:relative;display:grid;place-items:center}
-.banner .ico svg{position:absolute;inset:0}
-.banner b{display:block;font-size:17px;line-height:1.4}
-.banner span{font-size:13.5px;opacity:.8}
-.banner.ok{background:var(--ok);color:#fff}
-
-.live{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
-.live.nocam{grid-template-columns:minmax(0,1fr)}
-@media (max-width:760px){.live{grid-template-columns:minmax(0,1fr)}}
-.panel{position:relative;overflow:hidden;display:flex;flex-direction:column}
-.ph{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 14px 0}
-.ph b{font-size:14px}
-.ph span{font-size:12.5px;color:var(--muted)}
-.camwrap{position:relative;margin:10px;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3}
-@media (max-width:760px){.camwrap{aspect-ratio:auto;height:34vh}}
-.camwrap video,.camwrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.camwrap.mirror video,.camwrap.mirror canvas{transform:scaleX(-1)}
-.lost{position:absolute;top:10px;left:10px;background:#000c;color:#fff;border-radius:99px;padding:4px 12px;font-size:13px}
-.camfoot{display:flex;gap:8px;padding:0 10px 10px;align-items:center;flex-wrap:wrap}
-.camfoot .muted{font-size:12.5px;flex:1;min-width:12em}
-.stage{padding:6px 8px 8px}
-.stage svg{width:100%;height:auto;max-height:56vh}
-.live.nocam .stage svg{max-width:520px;margin:0 auto}
-@media (max-width:760px){.stage svg{max-height:44vh}}
-.blind{position:absolute;inset:0;background:var(--fg);color:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-weight:700}
-.blind span{font-weight:400;font-size:13px;opacity:.8}
-
-.controls{padding:6px 16px}
-.crow{display:grid;grid-template-columns:11em minmax(0,1fr);gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
-.crow:last-child{border-bottom:0}
-@media (max-width:640px){.crow{grid-template-columns:1fr;gap:8px}}
-.clabel b{display:block;font-size:14.5px}
-.clabel span{display:block;font-size:12.5px;color:var(--muted);line-height:1.5}
-.gains{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-.gain{border:1px solid var(--line);border-radius:12px;padding:6px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;background:var(--surface)}
-.gain .v{font-family:var(--mono);font-size:12.5px;font-weight:700}
-.gain .w{font-size:11px;color:var(--muted)}
-.gain[aria-pressed="true"]{border-color:var(--p);background:var(--p-soft);box-shadow:inset 0 0 0 1px var(--p)}
-.gain-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:4px;padding-inline:4px}
-.seg{display:inline-flex;background:var(--faint);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;flex-wrap:wrap}
-.seg button{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;font-size:13.5px;color:var(--muted)}
+/* top bar */
+.top{display:flex;align-items:center;gap:10px;min-width:0}
+.top h1{font-size:15px;font-weight:700;white-space:nowrap;margin-right:4px}
+.modes{display:flex;align-items:center;gap:8px;min-width:0}
+.seg{display:flex;background:var(--faint);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px;min-width:0}
+.seg button{flex:1 1 0;min-width:0;padding:5px 10px;border-radius:8px;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.modes .seg button{flex:1 0 auto;text-overflow:clip}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:0 1px 2px #0002}
-.rowbtns{display:flex;gap:8px;flex-wrap:wrap}
-kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 8px;border-radius:7px;border:1px solid var(--line);border-bottom-width:3px;background:var(--surface);font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg)}
-.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px}
-.key{display:flex;align-items:center;gap:8px;font-size:13.5px}
-.key .ks{display:flex;gap:4px;flex:none}
-.blind .keys{max-width:640px;width:100%;padding:0 20px;margin-top:14px}
+.chip{padding:5px 10px;border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--muted);white-space:nowrap;background:var(--surface)}
+.chip[aria-pressed="true"]{border-color:var(--h);color:var(--h);background:var(--h-soft);font-weight:700}
+.run{margin-left:auto;min-width:5.5em;padding:7px 14px;border-radius:10px;background:var(--h);color:#fff;font-weight:700;text-align:center;white-space:nowrap}
+.run.on{background:var(--surface);color:var(--fg);border:1px solid var(--line);padding:6px 13px}
+.btn{padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;font-weight:700;white-space:nowrap;text-align:center}
+.btn:active,.run:active{transform:scale(.98)}
+
+/* instruction bar: fixed height, one line */
+.bar{height:40px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:12px;background:var(--fg);color:var(--surface);min-width:0;overflow:hidden}
+.bar.ok{background:var(--ok);color:#fff}
+.bar.err{background:var(--p);color:#fff}
+.bar .ring{flex:none;width:24px;height:24px}
+.bar .step{flex:none;width:2.6em;font-size:12px;opacity:.75}
+.bar .msg{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .msg b{font-size:14.5px}
+.bar .msg span{font-size:12.5px;opacity:.75;margin-left:10px}
+
+/* main */
+.main{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 288px;gap:10px;min-height:0}
+.main.nocam{grid-template-columns:minmax(0,1fr) 288px}
+.main.nocam #campanel{display:none}
+.cam{position:relative;display:flex;flex-direction:column;overflow:hidden;padding:8px;gap:6px}
+.camwrap{position:relative;flex:1;min-height:0;border-radius:10px;overflow:hidden;background:#000}
+.camwrap video,.camwrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.camwrap.mirror video,.camwrap.mirror canvas{transform:scaleX(-1)}
+.ph{position:absolute;inset:0;display:grid;place-items:center;color:#fff9;font-size:13px}
+.lost{position:absolute;top:8px;left:8px;background:#000c;color:#fff;border-radius:99px;padding:3px 10px;font-size:12px}
+.flip{position:absolute;top:8px;right:8px;background:#000a;color:#fff;border-radius:99px;padding:4px 10px;font-size:12px}
+.cap{flex:none;height:18px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage{position:relative;overflow:hidden;padding:8px;display:flex}
+.stage > svg{width:100%;height:100%;min-height:0}
+.blind{position:absolute;inset:0;background:var(--fg);color:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;text-align:center;font-weight:700;font-size:16px}
+
+/* controls */
+.ctl{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.grp{display:flex;flex-direction:column;gap:5px}
+.lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.lbl b{color:var(--fg);font-size:13px}
+.gv{color:var(--p);font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
+.gains{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.gain{border:1px solid var(--line);border-radius:8px;padding:6px 0;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;background:var(--surface)}
+.gain[aria-pressed="true"]{border-color:var(--p);background:var(--p-soft);color:var(--p);box-shadow:inset 0 0 0 1px var(--p)}
+.gains.hide .gain{border-color:var(--line)!important;background:var(--surface)!important;color:inherit!important;box-shadow:none!important}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kb{margin-top:auto;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11.5px;color:var(--muted)}
+.kb span{white-space:nowrap}
+kbd{display:inline-block;min-width:18px;padding:0 4px;border-radius:4px;border:1px solid var(--line);border-bottom-width:2px;background:var(--faint);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--fg);text-align:center;margin-right:2px;line-height:16px}
+.blind .kb{margin-top:6px;justify-content:center;max-width:420px;font-weight:400;color:var(--surface);opacity:.85}
 .blind kbd{background:transparent;color:var(--surface);border-color:color-mix(in srgb,var(--surface) 45%,transparent)}
-.blind .key{color:var(--surface);opacity:.85;font-weight:400}
-.blind .big{font-size:20px}
-.stage .blind svg{width:56px;height:56px;max-height:none}
-.secret{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--p);background:var(--p-soft);border-radius:99px;padding:2px 10px}
-.gains.hide .gain{border-color:var(--line)!important;background:var(--surface)!important;box-shadow:none!important}
-.err{border:1px solid var(--p);color:var(--p);background:var(--p-soft);border-radius:12px;padding:10px 14px;font-size:14px}
+@media (pointer:coarse){.kb{display:none}}
+
+/* phone */
+@media (max-width:760px){
+  .app{height:auto;min-height:100dvh;gap:8px;padding-top:max(8px,env(safe-area-inset-top,0px))}
+  .top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px}
+  .modes{grid-column:1/-1;order:3}
+  .modes .seg{flex:1}
+  .main,.main.nocam{grid-template-columns:minmax(0,1fr);gap:8px}
+  .cam{height:26vh;padding:6px;gap:0}
+  .cap{display:none}
+  .stage{height:28vh;padding:2px}
+  .ctl{display:grid;grid-template-columns:1fr 1fr;gap:8px 8px;padding:10px}
+  .ctl > .grp:first-child,.ctl > .row2{grid-column:1/-1}
+  .seg button{padding:5px 4px;font-size:12.5px}
+}
 </style>
 </head>
 <body>
 <div class="app">
-
-<!-- ================= START ================= -->
-<section id="start" style="display:flex;flex-direction:column;gap:16px">
-  <div class="hero">
-    <span class="eyebrow">音のC/D比 プロトタイプ</span>
-    <h1>音で、重さは変わる？</h1>
-    <p>物を持ち上げると、手の高さに合わせて音が高くなります。<b>手を1 cm上げたときに音がどれだけ上がるか</b>（ゲイン）を変えると、同じ物でも重さの感じ方が変わるかを試せます。</p>
-  </div>
-
-  <div class="steps3">
-    <div class="card s3"><span class="num">1</span><div><b>机に置いて0に合わせる</b><span>じっとすると自動で合う</span></div>
-      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round"><path d="M4 34h46"/><rect x="18" y="22" width="18" height="12" rx="2" fill="var(--h-soft)" stroke="var(--h)"/></svg></div>
-    <div class="card s3"><span class="num">2</span><div><b>ゆっくり持ち上げる</b><span>30 cmくらいまで、そして戻す</span></div>
-      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 34h46" stroke="var(--muted)"/><rect x="18" y="6" width="18" height="12" rx="2" fill="var(--h-soft)" stroke="var(--h)"/><path d="M27 30v-8M23 26l4-4 4 4" stroke="var(--h)"/></svg></div>
-    <div class="card s3"><span class="num">3</span><div><b>ゲインを変えて比べる</b><span>目を閉じても試す</span></div>
-      <svg width="54" height="40" viewBox="0 0 54 40" fill="none" stroke-width="2.6" stroke-linecap="round"><path d="M6 34L48 30" stroke="var(--p)" opacity=".5"/><path d="M6 34L48 18" stroke="var(--p)" opacity=".75"/><path d="M6 34L48 6" stroke="var(--p)"/></svg></div>
-  </div>
-
-  <h2 class="h2">高さの測り方を選ぶ</h2>
-  <div class="methods">
-    <div class="card method">
-      <div class="ill">
-        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
-          <!-- phone/laptop on stand -->
-          <rect x="22" y="30" width="44" height="72" rx="6" fill="var(--surface)" stroke="var(--fg)" stroke-width="2.2"/>
-          <circle cx="44" cy="38" r="3" fill="var(--fg)"/>
-          <path d="M30 108l14-10 14 10" stroke="var(--fg)" stroke-width="2.2"/>
-          <!-- view cone -->
-          <path d="M47 38L200 18M47 38L200 104" stroke="var(--h)" stroke-width="1.6" stroke-dasharray="4 5"/>
-          <!-- hand + cup -->
-          <rect x="140" y="52" width="30" height="34" rx="4" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
-          <path d="M136 52h38" stroke="var(--fg)" stroke-width="7"/>
-          <path d="M155 104v-12M150 97l5-5 5 5" stroke="var(--h)" stroke-width="2.2"/>
-        </svg>
+  <div class="top">
+    <h1>音のC/D比デモ</h1>
+    <div class="modes">
+      <div class="seg" role="group" aria-label="測り方">
+        <button type="button" data-mode="cam" aria-pressed="true">カメラ</button>
+        <button type="button" data-mode="above" aria-pressed="false">置いたスマホ</button>
+        <button type="button" data-mode="phone" aria-pressed="false">センサー</button>
       </div>
-      <h3>カメラで手を写す <span class="badge good">精度 高い・おすすめ</span></h3>
-      <p>PCのWebカメラか、スマホを立てて置いてカメラで手を写します。手の位置から高さを測るので、持ち上げる物は何でも構いません。</p>
-      <ul><li>手と机が写るように、横か斜め前から写す</li><li>カメラの使用を許可してください</li></ul>
-      <button type="button" class="btn primary" id="go-cam">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>カメラではじめる</button>
+      <button type="button" class="chip" data-mode="demo" aria-pressed="false">見本</button>
     </div>
-    <div class="card method">
-      <div class="ill">
-        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
-          <rect x="92" y="98" width="56" height="9" rx="3" fill="var(--surface)" stroke="var(--fg)" stroke-width="2.2"/>
-          <circle cx="120" cy="98" r="2.5" fill="var(--fg)"/>
-          <path d="M120 96L82 12M120 96L158 12" stroke="var(--h)" stroke-width="1.6" stroke-dasharray="4 5"/>
-          <rect x="104" y="40" width="32" height="26" rx="4" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
-          <path d="M100 40h40" stroke="var(--fg)" stroke-width="7"/>
-          <path d="M176 70V34M170 40l6-6 6 6M170 64l6 6 6-6" stroke="var(--h)" stroke-width="2.2"/>
-        </svg>
-      </div>
-      <h3>スマホを置いて、その上で持ち上げる <span class="badge good">スマホだけ・精度 中</span></h3>
-      <p>スマホを画面を上にして机に置くと、カメラが上を向きます。その真上で手を上下させると、写る手の大きさから高さを測ります。</p>
-      <ul><li>手のひらを下に向けて、カメラの真上にかざす</li><li>近すぎると写りきらないので、10 cmくらい上から始める</li></ul>
-      <button type="button" class="btn primary" id="go-above">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>置いたスマホではじめる</button>
-    </div>
-    <div class="card method">
-      <div class="ill">
-        <svg width="240" height="120" viewBox="0 0 240 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 108h220" stroke="var(--muted)" stroke-width="2"/>
-          <rect x="96" y="40" width="48" height="24" rx="5" fill="var(--h-soft)" stroke="var(--h)" stroke-width="2.2"/>
-          <path d="M120 34V14M114 20l6-6 6 6" stroke="var(--h)" stroke-width="2.2"/>
-          <path d="M100 94h40" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>
-          <rect x="100" y="94" width="40" height="10" rx="3" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="3 3"/>
-          <path d="M120 88V70" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="3 4"/>
-        </svg>
-      </div>
-      <h3>スマホそのものを持ち上げる <span class="badge meh">手軽・精度は粗い</span></h3>
-      <p>スマホの動きセンサーで高さを推定します。持ち上げて机に戻すと、最初の音に戻ります。途中の高さは数cmずれます。</p>
-      <ul><li>画面を上にして机に置いてから始める</li><li>iPhoneは動きの許可を求められます</li></ul>
-      <button type="button" class="btn ghost" id="go-phone">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>スマホのセンサーではじめる</button>
-    </div>
+    <button type="button" class="run" id="run">開始</button>
   </div>
 
-  <div class="card tips">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--p)" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>
-    <div>音が出ます。<b>有線イヤホン</b>がおすすめです（Bluetoothは音が遅れます）。iPhoneはマナーモードを解除してください。
-      カメラが使えない場合は <button type="button" id="go-demo" style="color:var(--h);text-decoration:underline;font-weight:700">見本を見る</button>（自動で持ち上げる動きを再生）。</div>
-  </div>
-</section>
-
-<!-- ================= LIVE ================= -->
-<section id="live-wrap" hidden style="display:flex;flex-direction:column;gap:12px">
-  <div class="topbar">
-    <button type="button" class="back" id="back">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>方法を選び直す</button>
-    <div class="stepbar" aria-label="進み具合">
-      <div class="st" id="st1"><i>1</i><span class="lg">0に合わせる</span><span class="sm">準備</span></div>
-      <div class="st" id="st2"><i>2</i><span class="lg">持ち上げる</span><span class="sm">上げる</span></div>
-      <div class="st" id="st3"><i>3</i><span class="lg">ゲインを変えて比べる</span><span class="sm">比べる</span></div>
-    </div>
+  <div class="bar" id="banner" aria-live="polite">
+    <svg class="ring" viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="5"/>
+      <circle id="ring" cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132" transform="rotate(-90 25 25)"/></svg>
+    <span class="step num" id="step">–/3</span>
+    <div class="msg"><b id="btitle"></b><span id="bsub"></span></div>
   </div>
 
-  <div class="banner" id="banner" aria-live="polite">
-    <div class="ico">
-      <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="4"/>
-        <circle id="ring" cx="25" cy="25" r="21" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132" transform="rotate(-90 25 25)"/></svg>
-      <svg id="bicon" viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></svg>
-    </div>
-    <div><b id="btitle">準備中</b><span id="bsub"></span></div>
-  </div>
-
-  <div class="err" id="err" hidden></div>
-
-  <div class="live" id="live">
-    <div class="card panel" id="campanel">
-      <div class="ph"><b>カメラ</b><span id="camcap">青い点が手の位置・点線が0の高さ</span></div>
+  <div class="main" id="live">
+    <div class="card cam" id="campanel">
       <div class="camwrap" id="camwrap">
         <video id="video" playsinline muted></video>
         <canvas id="overlay"></canvas>
+        <div class="ph" id="camph">開始するとカメラが映ります</div>
         <div class="lost" id="lost" hidden>手が写っていません</div>
+        <button type="button" class="flip" id="flip" hidden>前／後ろ</button>
       </div>
-      <div class="camfoot">
-        <span class="muted" id="camtip">手と机の面が両方写るように置いてください。</span>
-        <button type="button" class="btn ghost" id="flip" style="padding:7px 12px;font-size:13px" hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><path d="M9 13a3 3 0 0 1 5.2-2M15 13a3 3 0 0 1-5.2 2"/></svg>前／後ろを切り替え</button>
-      </div>
+      <div class="cap" id="camcap"></div>
     </div>
 
-    <div class="card panel stage" id="stagepanel">
-      <div class="ph" style="padding-inline:6px"><b>手の高さ と 音の高さ</b><span>2つをつなぐ線の傾き＝ゲイン</span></div>
+    <div class="card stage" id="stagepanel">
       <svg id="stage" viewBox="0 0 360 340" role="img" aria-label="手の高さと音の高さのメーター">
         <text x="80" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="var(--h)">手の高さ</text>
         <text x="280" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="var(--p)">音の高さ</text>
@@ -280,10 +159,10 @@ kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 
           <path d="M-3 7V-9l9 -2" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="-6.5" cy="7.5" r="4" fill="#fff"/>
         </g>
-        <text x="80" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--h)" id="hval">0</text>
+        <text x="80" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--h)" style="font-variant-numeric:tabular-nums" id="hval">0</text>
         <text x="80" y="326" text-anchor="middle" font-size="12" fill="var(--muted)">cm</text>
-        <text x="280" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--p)" id="pval">0</text>
-        <text x="280" y="326" text-anchor="middle" font-size="12" fill="var(--muted)">半音（最初の音から）</text>
+        <text x="280" y="306" text-anchor="middle" font-family="var(--mono)" font-size="28" font-weight="700" fill="var(--p)" style="font-variant-numeric:tabular-nums" id="pval">0</text>
+        <text x="280" y="326" text-anchor="middle" font-size="12" fill="var(--muted)">半音</text>
         <g id="speaker" transform="translate(180,300)" opacity=".25">
           <path d="M-12 -5h5l7-6v22l-7-6h-5z" fill="var(--fg)"/>
           <path d="M5 -4a6 6 0 0 1 0 12M9 -8a11 11 0 0 1 0 20" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linecap="round"/>
@@ -291,50 +170,37 @@ kbd{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 
         <text id="sndlabel" x="180" y="328" text-anchor="middle" font-size="11" fill="var(--muted)">停止中</text>
       </svg>
       <div class="blind" id="blind" hidden>
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg>
-        <span class="big">目を閉じて、音だけで比べてみよう</span><span id="blindsub">キーボードだけで操作できます。操作するたびに声でお知らせします</span>
-        <div class="keys keyhelp"></div>
+        <span>目を閉じて、音だけで比べる</span>
+        <div class="kb keyhelp"></div>
       </div>
     </div>
-  </div>
 
-  <div class="card controls" id="controls">
-    <div class="crow">
-      <div class="clabel"><b>ゲイン</b><span>手を1 cm上げたとき、音が何半音上がるか</span><span class="secret" id="secret" hidden>ランダム中（答えは A キー）</span></div>
-      <div>
+    <div class="card ctl" id="controls">
+      <div class="grp">
+        <div class="lbl"><b>ゲイン</b><span class="gv num" id="gv">0.2 半音/cm</span></div>
         <div class="gains" id="gains" role="group" aria-label="ゲイン"></div>
-        <div class="gain-scale"><span>← 音があまり上がらない（重い？）</span><span>よく上がる（軽い？）→</span></div>
       </div>
-    </div>
-    <div class="crow">
-      <div class="clabel"><b>音の向き</b><span>持ち上げたとき、音を上げるか下げるか</span></div>
-      <div class="seg" role="group" aria-label="音の向き">
-        <button type="button" data-dir="1" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 20V4M6 10l6-6 6 6"/></svg>上げると高くなる</button>
-        <button type="button" data-dir="-1" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>上げると低くなる</button>
+      <div class="grp">
+        <div class="lbl"><b>向き</b></div>
+        <div class="seg" role="group" aria-label="音の向き">
+          <button type="button" data-dir="1" aria-pressed="true">上げると高く</button>
+          <button type="button" data-dir="-1" aria-pressed="false">上げると低く</button>
+        </div>
       </div>
-    </div>
-    <div class="crow">
-      <div class="clabel"><b>鳴らし方</b><span>止まっている間も鳴らすかどうか</span></div>
-      <div class="seg" role="group" aria-label="鳴らし方">
-        <button type="button" data-snd="moving" aria-pressed="true">動いている間だけ</button>
-        <button type="button" data-snd="always" aria-pressed="false">ずっと鳴らす</button>
+      <div class="grp">
+        <div class="lbl"><b>鳴らし方</b></div>
+        <div class="seg" role="group" aria-label="鳴らし方">
+          <button type="button" data-snd="moving" aria-pressed="true">動く間</button>
+          <button type="button" data-snd="always" aria-pressed="false">ずっと</button>
+        </div>
       </div>
-    </div>
-    <div class="crow" id="kbrow">
-      <div class="clabel"><b>キーボード</b><span>物を持ったまま、片手で操作できます。押すと声でお知らせ</span></div>
-      <div class="keys keyhelp"></div>
-    </div>
-    <div class="crow">
-      <div class="clabel"><b>その他</b><span>ずれたら0に合わせ直す</span></div>
-      <div class="rowbtns">
-        <button type="button" class="btn ghost" id="zero" style="padding:8px 14px;font-size:14px">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 20h18"/><path d="M12 16V6M8 10l4-4 4 4"/></svg>今の高さを0にする</button>
-        <button type="button" class="btn ghost" id="eye" aria-pressed="false" style="padding:8px 14px;font-size:14px">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 10s4 5 10 5 10-5 10-5"/><path d="M5 13l-2 3M9 15l-1 3M15 15l1 3M19 13l2 3"/></svg><span id="eyetext">目を閉じて試す</span></button>
+      <div class="row2">
+        <button type="button" class="btn" id="zero">0にする</button>
+        <button type="button" class="btn" id="eye" aria-pressed="false"><span id="eyetext">目を閉じる</span></button>
       </div>
+      <div class="kb keyhelp" aria-label="キーボード操作"></div>
     </div>
   </div>
-</section>
 </div>
 
 <script type="module">
@@ -347,15 +213,13 @@ const S = { mode: "cam", aboveFacing: "user", facing: TOUCH ? "environment" : "u
 const $ = id => document.getElementById(id);
 
 let h = 0, moving = false, gateUntil = 0, zeroed = false;
-let lifts = 0, peak = 0, zeroProgress = 0;
+let lifts = 0, peak = 0, zeroProgress = 0, errMsg = "";
 
 /* ---------- gain buttons ---------- */
-const RISE = [4, 9, 14, 20, 27];
-GAINS.forEach(([g, w], gi) => {
+GAINS.forEach(([g], gi) => {
   const b = document.createElement("button");
   b.type = "button"; b.className = "gain"; b.setAttribute("aria-pressed", g === S.gain ? "true" : "false");
-  const rise = RISE[gi];
-  b.innerHTML = `<svg width="48" height="34" viewBox="0 0 48 34"><path d="M5 29H43" stroke="var(--line)" stroke-width="2"/><path d="M5 29L43 ${29 - rise}" stroke="var(--p)" stroke-width="3" stroke-linecap="round"/></svg><span class="v">${g}</span><span class="w">${w}</span>`;
+  b.textContent = String(g);
   b.onclick = () => setGain(gi, false, false);
   $("gains").appendChild(b);
 });
@@ -367,21 +231,17 @@ bindSeg("dir", "dir", x => parseInt(x, 10));
 bindSeg("snd", "snd", x => x);
 $("eye").onclick = () => {
   S.blind = !S.blind; $("eye").setAttribute("aria-pressed", S.blind ? "true" : "false");
-  $("blind").hidden = !S.blind; $("eyetext").textContent = S.blind ? "表示に戻す" : "目を閉じて試す";
+  $("blind").hidden = !S.blind; $("eyetext").textContent = S.blind ? "表示に戻す" : "目を閉じる";
 };
-
 
 /* ---------- keyboard + voice (目を閉じたまま操作) ---------- */
 const KEYS = [
-  [["←","→"], "ゲインを下げる／上げる"], [["1","…","5"], "ゲインを直接選ぶ"],
-  [["Space"], "今の高さを0にする"], [["Enter"], "目を閉じるモード"],
-  [["R"], "ランダムなゲイン（答えを隠す）"], [["A"], "今のゲインを読み上げる"],
-  [["D"], "音の向きを切り替える"], [["M"], "鳴らし方を切り替える"]
+  [["←","→"], "ゲイン"], [["1","5"], "直接", "–"], [["Space"], "0にする"], [["Enter"], "目を閉じる"],
+  [["R"], "ランダム"], [["A"], "答え"], [["D"], "向き"], [["M"], "鳴らし方"]
 ];
 document.querySelectorAll(".keyhelp").forEach(el => {
-  el.innerHTML = KEYS.map(([ks, t]) => `<div class="key"><span class="ks">${ks.map(k => k === "…" ? "<span>…</span>" : `<kbd>${k}</kbd>`).join("")}</span>${t}</div>`).join("");
+  el.innerHTML = KEYS.map(([ks, t, sep]) => `<span>${ks.map(k => `<kbd>${k}</kbd>`).join(sep || "")}${t}</span>`).join("");
 });
-if(TOUCH){ $("kbrow").hidden = true; document.querySelector(".blind .keyhelp").hidden = true; $("blindsub").textContent = "もう一度「表示に戻す」を押すと戻ります"; }
 
 let jaVoice = null;
 function pickVoice(){ try{ jaVoice = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang)) || null; }catch(_){} }
@@ -411,7 +271,8 @@ function setGain(i, announce, hidden){
   i = Math.max(0, Math.min(GAINS.length - 1, i));
   S.gi = i; S.gain = GAINS[i][0]; S.hidden = hidden;
   document.querySelectorAll(".gain").forEach((o, k) => o.setAttribute("aria-pressed", k === i ? "true" : "false"));
-  $("gains").classList.toggle("hide", hidden); $("secret").hidden = !hidden;
+  $("gains").classList.toggle("hide", hidden);
+  $("gv").textContent = hidden ? "ランダム（Aで答え）" : `${GAINS[i][0]} 半音/cm`;
   if(announce) say(hidden ? "ランダム" : gainName(i), hidden ? 2 : i + 1);
 }
 function toggleBlind(){ $("eye").click(); say(S.blind ? "目を閉じるモード" : "表示に戻しました"); }
@@ -458,42 +319,41 @@ function render(st, on){
   $("sndlabel").textContent = on ? "鳴っている" : "停止中";
 }
 
-/* ---------- guide (step bar + banner) ---------- */
-const ICONS = {
-  hand: '<path d="M10 38h30"/><path d="M19 33V20a2.5 2.5 0 0 1 5 0v10M24 29V16a2.5 2.5 0 0 1 5 0v13M29 29V19a2.5 2.5 0 0 1 5 0v12"/>',
-  phone: '<path d="M10 36h30"/><rect x="15" y="27" width="20" height="7" rx="2"/>',
-  up: '<path d="M25 37V13M16 22l9-9 9 9"/>',
-  down: '<path d="M25 13v24M16 28l9 9 9-9"/>',
-  ear: '<path d="M18 30c0-9 3-15 9-15s8 5 8 9-4 5-5 8-2 6-6 6"/><path d="M23 25a3 3 0 0 1 5 0"/>',
-  slope: '<path d="M12 36L38 30" opacity=".5"/><path d="M12 36L38 14"/>',
-  wait: '<circle cx="25" cy="25" r="3"/>',
-  play: '<path d="M20 15v20l15-10z" fill="currentColor"/>'
-};
+/* ---------- guide (instruction bar: fixed height, one line) ---------- */
 let lastGuide = "";
-function guide(){
-  let key, title, sub = "", icon, ok = false;
-  if(!zeroed){
-    key = "zero"; icon = S.mode === "phone" ? "phone" : "hand";
-    title = S.mode === "phone" ? "スマホを机に置いて、そのまま止めてください" : S.mode === "above" ? "スマホの真上に手をかざして、そのまま止めてください" : "手を机の上に置いて、そのまま止めてください";
-    sub = "輪が一周すると、その高さが0になります";
-  } else if(S.mode === "demo"){
-    key = "demo"; icon = "play"; title = "見本：自動で持ち上げています"; sub = "下のゲインを変えると、音の上がり方が変わります";
-  } else if(moving){
-    key = "moving"; icon = "ear"; title = "音の上がり方を聞いてみて"; sub = "手の高さに合わせて音が変わります";
-  } else if(h >= 20){
-    key = "down"; icon = "down"; title = "机の上に戻してください"; sub = "戻すと音も最初の高さに戻ります";
-  } else if(h < 5 && lifts >= 2){
-    key = "compare"; icon = "slope"; title = TOUCH ? "ゲインを変えて、もう一度持ち上げてみよう" : "← → キーでゲインを変えて、もう一度持ち上げてみよう"; sub = "重さの感じ方は変わった？ 目を閉じても試してみて"; ok = true;
-  } else {
-    key = "up"; icon = "up"; title = "ゆっくり30 cmくらい持ち上げてみよう"; sub = "右のメーターの点線（目安）くらいまで";
-  }
+function setBar(key, title, sub, cls, step){
   if(key !== lastGuide){
     $("btitle").textContent = title; $("bsub").textContent = sub;
-    $("bicon").innerHTML = ICONS[icon]; $("banner").classList.toggle("ok", ok); lastGuide = key;
+    const b = $("banner"); b.classList.toggle("ok", cls === "ok"); b.classList.toggle("err", cls === "err");
+    lastGuide = key;
   }
-  $("ring").setAttribute("stroke-dashoffset", String(132 * (1 - (zeroed ? 0 : zeroProgress))));
+  $("step").textContent = (step || "–") + "/3";
+}
+function idleBar(){
+  setBar("idle", "測り方を選んで「開始」", "音が出ます（有線イヤホン推奨）", "", 0);
+  $("ring").setAttribute("stroke-dashoffset", "132");
+}
+function guide(){
   const step = !zeroed ? 1 : (lifts >= 2 || S.mode === "demo") ? 3 : 2;
-  [1,2,3].forEach(i => { const el = $("st" + i); el.classList.toggle("now", i === step); el.classList.toggle("done", i < step); });
+  if(errMsg){ setBar("err:" + errMsg, errMsg, "", "err", step); return; }
+  let key, title, sub = "", ok = false;
+  if(!zeroed){
+    key = "zero";
+    title = S.mode === "phone" ? "スマホを机に置いて止める" : S.mode === "above" ? "スマホの真上に手をかざして止める" : "手を机に置いて止める";
+    sub = "輪が一周すると0になります";
+  } else if(S.mode === "demo"){
+    key = "demo"; title = "見本：自動で持ち上げています"; sub = "ゲインを変えて聞き比べ";
+  } else if(moving){
+    key = "moving"; title = "音の上がり方を聞く";
+  } else if(h >= 20){
+    key = "down"; title = "机の上に戻す"; sub = "音も最初の高さに戻ります";
+  } else if(h < 5 && lifts >= 2){
+    key = "compare"; title = TOUCH ? "ゲインを変えて、もう一度持ち上げる" : "← → でゲインを変えて、もう一度持ち上げる"; sub = "目を閉じても試す"; ok = true;
+  } else {
+    key = "up"; title = "ゆっくり30 cmくらい持ち上げる"; sub = "メーターの点線が目安";
+  }
+  setBar(key, title, sub, ok ? "ok" : "", step);
+  $("ring").setAttribute("stroke-dashoffset", String(132 * (1 - (zeroed ? 1 : zeroProgress))));
 }
 
 /* ---------- audio ---------- */
@@ -520,7 +380,16 @@ requestAnimationFrame(tick);
 
 let zeroNow = () => {};
 $("zero").onclick = () => zeroNow();
-const showErr = m => { $("err").textContent = m; $("err").hidden = false; };
+const showErr = m => { errMsg = m; };
+
+/* ---------- layout per mode ---------- */
+function applyLayout(){
+  const cam = S.mode === "cam" || S.mode === "above";
+  $("live").classList.toggle("nocam", !cam);
+  $("flip").hidden = !TOUCH || !cam;
+  $("camcap").textContent = S.mode === "above" ? "画面を上にして置き、手のひらを下に向けて真上にかざす・数字は距離"
+    : "手と机が写るように置く・青い点＝手、点線＝0の高さ";
+}
 
 /* ---------- demo ---------- */
 let demoT0 = 0;
@@ -535,17 +404,15 @@ function demoStep(now){
 /* ---------- camera ---------- */
 let stream = null, landmarker = null, camRaf = 0, cs = null;
 async function startCam(){
-  $("campanel").hidden = false; $("live").classList.remove("nocam");
-  $("flip").hidden = !TOUCH;
+  applyLayout();
   const above = S.mode === "above";
-  $("camcap").textContent = above ? "青い点が手の位置・数字はカメラからの距離" : "青い点が手の位置・点線が0の高さ";
-  $("camtip").textContent = above ? "画面を上にして机に置き、手のひらを下に向けて真上にかざしてください。" : "手と机の面が両方写るように置いてください。";
   const facing = above ? S.aboveFacing : S.facing;
-  $("btitle").textContent = "カメラを準備しています…"; $("bsub").textContent = "初回は手の検出の読み込みに数秒かかります"; lastGuide = "loading";
+  $("camph").textContent = "カメラを準備しています…";
   try{ stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing }, audio: false }); }
-  catch(e){ showErr("カメラを使えませんでした。ブラウザの設定でカメラを許可してから、もう一度お試しください。"); return; }
+  catch(e){ $("camph").textContent = ""; showErr("カメラを使えません。ブラウザでカメラを許可してください"); return; }
   $("camwrap").classList.toggle("mirror", facing === "user");
   const video = $("video"); video.srcObject = stream; await video.play();
+  $("camph").textContent = landmarker ? "" : "手の検出を読み込み中…";
   if(!landmarker){
     try{
       const vision = await import(MP + "/vision_bundle.mjs");
@@ -553,8 +420,10 @@ async function startCam(){
       const opts = d => ({ baseOptions: { modelAssetPath: MODEL, delegate: d }, runningMode: "VIDEO", numHands: 1 });
       try{ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("GPU")); }
       catch(_){ landmarker = await vision.HandLandmarker.createFromOptions(fs, opts("CPU")); }
-    }catch(e){ showErr("手の検出を読み込めませんでした。通信状況を確認して、ページを開き直してください。"); return; }
+    }catch(e){ $("camph").textContent = ""; showErr("手の検出を読み込めません。通信を確認して開き直してください"); return; }
   }
+  if(!stream) return;
+  $("camph").textContent = "";
   cs = { y0: null, k: null, y: null, palm: null, d: null, d0: null, hist: [], seen: 0, vt: -1, ph: 0, pt: 0 };
   zeroed = false; lastGuide = "";
   zeroNow = () => {
@@ -642,15 +511,15 @@ $("flip").onclick = () => {
 /* ---------- phone sensor ---------- */
 let ph = null;
 function startPhone(){
-  $("campanel").hidden = true; $("live").classList.add("nocam");
+  applyLayout();
   zeroed = false; h = 0; lastGuide = "";
   ph = { v: 0, lastT: null, g: null, win: [], segStart: 0, wasStill: true, stillSince: performance.now() };
   zeroNow = () => { h = 0; if(ph) ph.v = 0; zeroed = true; peak = 0; };
   const DME = window.DeviceMotionEvent;
-  if(!DME){ showErr("このブラウザでは動きのセンサーが使えません。「カメラで手を写す」を選んでください。"); return; }
+  if(!DME){ showErr("このブラウザでは動きのセンサーが使えません。「カメラ」を選んでください"); return; }
   const attach = () => window.addEventListener("devicemotion", onMotion);
   if(typeof DME.requestPermission === "function"){
-    DME.requestPermission().then(r => r === "granted" ? attach() : showErr("動きのセンサーが許可されませんでした。")).catch(() => showErr("動きのセンサーの許可に失敗しました。"));
+    DME.requestPermission().then(r => r === "granted" ? attach() : showErr("動きのセンサーが許可されませんでした")).catch(() => showErr("動きのセンサーの許可に失敗しました"));
   } else attach();
 }
 function onMotion(e){
@@ -683,26 +552,36 @@ function onMotion(e){
 function stopAll(){
   if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
   cancelAnimationFrame(camRaf);
+  $("video").srcObject = null; $("lost").hidden = true;
+  const cv = $("overlay"); cv.getContext("2d").clearRect(0, 0, cv.width, cv.height);
+  $("camph").textContent = "開始するとカメラが映ります";
   window.removeEventListener("devicemotion", onMotion); ph = null;
-  zeroed = false; h = 0; moving = false; lifts = 0; peak = 0; zeroProgress = 0; $("err").hidden = true;
+  zeroed = false; h = 0; moving = false; lifts = 0; peak = 0; zeroProgress = 0; errMsg = "";
+  zeroNow = () => {}; lastGuide = "";
 }
 function begin(){
-  $("err").hidden = true;
+  errMsg = "";
   if(S.mode === "cam" || S.mode === "above") startCam();
   else if(S.mode === "phone") startPhone();
-  else { $("campanel").hidden = true; $("live").classList.add("nocam"); zeroed = true; demoT0 = performance.now(); lastGuide = ""; }
+  else { applyLayout(); zeroed = true; demoT0 = performance.now(); lastGuide = ""; }
 }
-function go(mode){
-  initAudio(); S.mode = mode; S.running = true;
-  $("start").hidden = true; $("live-wrap").hidden = false; window.scrollTo(0, 0);
-  begin();
+function setRun(on){
+  S.running = on; $("run").textContent = on ? "停止" : "開始"; $("run").classList.toggle("on", on);
+  if(!on) idleBar();
 }
-$("go-cam").onclick = () => go("cam");
-$("go-phone").onclick = () => go("phone");
-$("go-above").onclick = () => go("above");
-$("go-demo").onclick = () => go("demo");
-$("back").onclick = () => { stopAll(); S.running = false; $("live-wrap").hidden = true; $("start").hidden = false; };
-if(location.hash === "#demo") go("demo");
+function start(){ initAudio(); setRun(true); begin(); }
+function stop(){ stopAll(); setRun(false); }
+$("run").onclick = () => S.running ? stop() : start();
+// 測り方の切り替え（動作中なら、そのクリックで新しい方法を開始＝ユーザー操作として許可を求められる）
+const modeBtns = document.querySelectorAll("[data-mode]");
+function selectMode(m){
+  modeBtns.forEach(o => o.setAttribute("aria-pressed", o.dataset.mode === m ? "true" : "false"));
+  if(S.running){ stopAll(); S.mode = m; initAudio(); begin(); }
+  else { S.mode = m; applyLayout(); }
+}
+modeBtns.forEach(b => b.onclick = () => selectMode(b.dataset.mode));
+applyLayout(); idleBar();
+if(location.hash === "#demo"){ selectMode("demo"); start(); }
 </script>
 </body>
 </html>
